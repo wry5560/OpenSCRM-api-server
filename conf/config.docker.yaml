@@ -1,0 +1,60 @@
+# Docker 环境配置
+App:
+  Name: openscrm
+  Env: TEST
+  Key: AzbkdkkAV6ow17Jcwk7Z+r0q8MwOGm7lV5WXjalow++RLP/AL22+vEfJbEWnDu4Dvgu6Ee8nt4lqsQllhg13Bg==
+  SuperAdmin:
+    - jeremy
+  AutoMigration: true
+  AutoSyncWeWorkData: false
+
+Server:
+  RunMode: debug
+  HttpHost: 0.0.0.0
+  HttpPort: 9003
+  MsgArchHttpPort: 9002
+  ReadTimeout: 60
+  WriteTimeout: 60
+  MsgArchSrvHost: msg-archive-server
+
+# Docker MySQL 服务
+DB:
+  Host: mysql:3306
+  User: open_scrm
+  Name: open_scrm
+  Password: OpenSCRM2024!
+
+# Docker Redis 服务
+Redis:
+  Host: redis:6379
+  Password: OpenSCRM2024!
+  DBNumber: 1
+  IdleTimeout: 5
+  ReadTimeout: 3
+  DialTimeout: 5
+
+Storage:
+  Type: aliyun
+  AccessKeyId: todo
+  AccessKeySecret: todo
+  Endpoint: todo
+  Bucket: todo
+  SecretID:
+  SecretKey:
+  BucketURL:
+
+WeWork:
+  ExtCorpID: wwf36b5e6ef0b569ac
+  ContactSecret: todo
+  CustomerSecret: todo
+  MainAgentID: 10004
+  MainAgentSecret: todo
+  CallbackToken: DemoTokenForLocalDevelopment123
+  CallbackAesKey: abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG
+  PriKeyPath: /app/conf/private.key
+
+DelayQueue:
+  BucketSize: 3
+  BucketName: dq_bucket_%d
+  QueueName: dq_queue_%s
+  QueueBlockTimeout: 2
