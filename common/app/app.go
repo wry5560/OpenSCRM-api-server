@@ -3,11 +3,12 @@ package app
 import (
 	"bytes"
 	"fmt"
+	"net/http"
+
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
-	"net/http"
 	"openscrm/app/constants"
 	"openscrm/common/ecode"
 	"openscrm/common/log"
@@ -44,25 +45,43 @@ func NewHandler(ctx *gin.Context) *Handler {
 		SaasAdminSession:  sessions.DefaultMany(ctx, string(constants.SaasAdminSessionName)),
 	}
 
+	// 设置 Cookie 选项，支持跨域 iframe 嵌入（明道云集成）
+	// SameSite=None 允许跨站请求携带 Cookie
+	// Secure=true 要求 HTTPS 环境
 	handler.CustomerSession.Options(sessions.Options{
-		MaxAge: 86400 * 7,
-		Path:   "/",
+		MaxAge:   86400 * 7,
+		Path:     "/",
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
 	})
 	handler.StaffSession.Options(sessions.Options{
-		MaxAge: 86400 * 30, // 侧边栏会话时效长一些
-		Path:   "/",
+		MaxAge:   86400 * 30, // 侧边栏会话时效长一些
+		Path:     "/",
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
 	})
 	handler.StaffAdminSession.Options(sessions.Options{
-		MaxAge: 86400 * 7,
-		Path:   "/",
+		MaxAge:   86400 * 7,
+		Path:     "/",
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
 	})
 	handler.CorpAdminSession.Options(sessions.Options{
-		MaxAge: 86400 * 7,
-		Path:   "/",
+		MaxAge:   86400 * 7,
+		Path:     "/",
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
 	})
 	handler.SaasAdminSession.Options(sessions.Options{
-		MaxAge: 86400 * 7,
-		Path:   "/",
+		MaxAge:   86400 * 7,
+		Path:     "/",
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode,
 	})
 
 	return handler

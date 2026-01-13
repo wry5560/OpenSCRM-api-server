@@ -17,21 +17,21 @@ func (o MassMsg) Update(msg MassMsg) error {
 type MassMsg struct {
 	ExtCorpModel
 	// 消息类型
-	SendType constants.SendMassMsgType `gorm:"type:tinyint unsigned;comment:1-立即发送,2-定时发送" json:"send_type" `
+	SendType constants.SendMassMsgType `gorm:"type:smallint;comment:1-立即发送,2-定时发送" json:"send_type" `
 	// 员工ID
 	ExtStaffIDs constants.StringArrayField `gorm:"type:JSON" json:"ext_staff_ids"`
 	// 可用部门ID
 	ExtDepartmentIDs constants.Int64ArrayField `gorm:"type:JSON" json:"ext_department_ids"`
 	// 消息内容
-	Msg constants.AutoReplyField `gorm:"type:json;comment:消息内容" json:"msg"`
+	Msg constants.AutoReplyField `gorm:"type:jsonb;comment:消息内容" json:"msg"`
 	// wx消息ID
 	ExtMsgID string `gorm:"type:varchar(33);comment:微信消息ID;index" json:"ext_msg_id"`
 	// 任务状态 1-预约发送,2-发送中,3-发送成功,4-发送失败,5-已取消; <=1  可修改,其余不可改
-	MissionStatus constants.SendMassMsgStatus `gorm:"comment:创建企业群发消息的状态,1-预约发送,2-发送中,3-发送成功,4-发送失败,5-已取消;type:tinyint unsigned;" json:"mission_status"`
+	MissionStatus constants.SendMassMsgStatus `gorm:"comment:创建企业群发消息的状态,1-预约发送,2-发送中,3-发送成功,4-发送失败,5-已取消;type:smallint;" json:"mission_status"`
 	// 是否有筛选条件
-	ExtCustomerFilterEnable constants.Boolean `gorm:"type:tinyint unsigned;comment:是否有筛选条件" json:"ext_customer_filter_enable" form:"ext_customer_filter_enable"`
+	ExtCustomerFilterEnable constants.Boolean `gorm:"type:smallint;comment:是否有筛选条件" json:"ext_customer_filter_enable" form:"ext_customer_filter_enable"`
 	// 接受客户的筛选条件
-	ExtCustomerFilter constants.ExtCustomerFilter `gorm:"type:json;comment:发送客户的筛选条件" json:"ext_customer_filter"`
+	ExtCustomerFilter constants.ExtCustomerFilter `gorm:"type:jsonb;comment:发送客户的筛选条件" json:"ext_customer_filter"`
 	// 已发员工计数
 	DeliveredNum int `gorm:"comment:已发送消息的员工数;type:int" json:"delivered_num"`
 	// 已送达客户计数

@@ -34,4 +34,6 @@ const (
 	CustomerInfo SessionField = "CustomerInfo"
 	// QrcodeAuthState 扫码登录state
 	QrcodeAuthState SessionField = "QrcodeAuthState"
+	// LoginSourceURL 登录来源URL，用于登录成功后重定向
+	LoginSourceURL SessionField = "LoginSourceURL"
 )

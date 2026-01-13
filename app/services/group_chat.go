@@ -78,6 +78,7 @@ func (o GroupChatService) Syncs(chatID string, extCorpID string) error {
 		CreateTime:   time.Unix(int64(chatInfo.CreateTime), 0),
 		Notice:       chatInfo.Notice,
 		Status:       constants.GroupChatStatusNotDismissed,
+		Total:        int64(len(chatInfo.MemberList)),
 	}
 
 	// 管理员

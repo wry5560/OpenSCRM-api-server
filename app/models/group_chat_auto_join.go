@@ -16,7 +16,7 @@ import (
 // GroupChatAutoJoinCode 自动拉群码
 type GroupChatAutoJoinCode struct {
 	ExtCorpModel
-	CreateType constants.GroupChatAutoCreateType `gorm:"type:tinyint;comment:拉群方式，1-群二维码，2-企微活码" json:"create_type"`
+	CreateType constants.GroupChatAutoCreateType `gorm:"type:smallint;comment:拉群方式，1-群二维码，2-企微活码" json:"create_type"`
 	// 自动拉群码分组
 	GroupID string `gorm:"type:bigint;uniqueIndex:idx_group_id_remark" json:"group_id"`
 	// 二维码名称
@@ -24,15 +24,15 @@ type GroupChatAutoJoinCode struct {
 	// 员工被客户扫码添加的自动回复
 	AutoReply string `gorm:"type:text" json:"auto_reply"`
 	// 每天加群人数是否有上线
-	DayAddUserLimitEnable constants.Boolean          `gorm:"type:tinyint unsigned" json:"day_add_user_limit_enable"`
-	BackupStaffIDs        constants.StringArrayField `gorm:"type:json" json:"backup_staff_ids" `
+	DayAddUserLimitEnable constants.Boolean          `gorm:"type:smallint" json:"day_add_user_limit_enable"`
+	BackupStaffIDs        constants.StringArrayField `gorm:"type:jsonb" json:"backup_staff_ids" `
 	GroupChatQRCode       []GroupChatQRCode          `gorm:"foreignKey:GroupChatAutoJoinID;references:ID" json:"group_chat_qr_code"`
 	// ConfigID 自动拉群码配置ID
 	ConfigID string `json:"config_id" gorm:"index;comment:自动拉群码配置ID"`
 	// QrCode 联系二维码的URL，仅在scene为2时返回
 	QrCode string `json:"qr_code" gorm:"comment:联系二维码的URL"`
 	// SkipVerify 外部客户添加时是否无需验证，假布尔类型
-	SkipVerify constants.Boolean `json:"skip_verify" gorm:"type:tinyint unsigned;default:1;comment:外部客户添加时是否无需验证，假布尔类型"`
+	SkipVerify constants.Boolean `json:"skip_verify" gorm:"type:smallint;default:1;comment:外部客户添加时是否无需验证，假布尔类型"`
 	// State 企业自定义的state参数，用于区分不同的添加渠道，在调用“获取外部联系人详情”时会返回该参数值
 	State string `json:"state" gorm:"comment:企业自定义的state参数"`
 	// AddCustomerCount 扫码添加人次
@@ -46,9 +46,9 @@ type GroupChatAutoJoinCode struct {
 	// AutoTagEnable 是否自动打标签
 	AutoTagEnable constants.Boolean `json:"auto_tag_enable" gorm:"comment:'是否自动打标签'"`
 	// ExtTagIDs 自动打标签绑定的标签ID数组
-	ExtTagIDs constants.StringArrayField `json:"ext_tag_ids" gorm:"type:json;comment:'自动打标签绑定的标签ID数组'"`
+	ExtTagIDs constants.StringArrayField `json:"ext_tag_ids" gorm:"type:jsonb;comment:'自动打标签绑定的标签ID数组'"`
 	// ExtStaffIDs 关联的外部员工ID
-	ExtStaffIDs constants.StringArrayField `json:"ext_staff_ids" gorm:"type:json;comment:'关联的外部员工ID'"`
+	ExtStaffIDs constants.StringArrayField `json:"ext_staff_ids" gorm:"type:jsonb;comment:'关联的外部员工ID'"`
 	Timestamp
 }
 
@@ -59,11 +59,11 @@ func (o GroupChatAutoJoinCode) UpdateGroupID(ids []string, newGroupID string) er
 // GroupChatQRCode 自动拉群码中的群二维码
 type GroupChatQRCode struct {
 	GroupChatAutoJoinID string `gorm:"type:bigint;comment:自动拉群码id" json:"group_chat_auto_join_id"`
-	Order               int    `gorm:"type:int unsigned;" json:"order"`
+	Order               int    `gorm:"type:integer;" json:"order"`
 	QrMediaId           string `gorm:"type:text;comment:群二维码pic media id" json:"qr_media_id"`
 	QrUrl               string `gorm:"type:text;comment:群二维码的pic url" json:"qr_url"`
-	UserLimit           int    `gorm:"type:int unsigned;comment:群二维码添加好友数上限" json:"user_limit"`
-	Status              int    `gorm:"type:tinyint unsigned;comment:群二维码状态,1- 使用中 2-已停用" json:"status"`
+	UserLimit           int    `gorm:"type:integer;comment:群二维码添加好友数上限" json:"user_limit"`
+	Status              int    `gorm:"type:smallint;comment:群二维码状态,1- 使用中 2-已停用" json:"status"`
 }
 
 // GroupChatAutoJoinBackupStaff 自动拉群码绑定的备份员工

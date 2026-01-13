@@ -14,16 +14,37 @@ type TagGroup struct {
 	ExtCorpModel
 	ExtID          string                    `gorm:"type:char(64);uniqueIndex;comment:外部标签分组ID" json:"ext_id"`
 	Name           string                    `gorm:"index;comment:组名字" json:"name"`
-	CreateTime     int                       `gorm:"type:int(16);comment:" json:"create_time"`
-	Order          uint32                    `gorm:"type:int(32);index;comment:order值大的排序靠前" json:"order"`
-	DepartmentList constants.Int64ArrayField `gorm:"type:json;comment:该标签组可用部门列表,默认0全部可用;" json:"department_list"`
+	CreateTime     int                       `gorm:"type:integer;comment:" json:"create_time"`
+	Order          uint32                    `gorm:"type:integer;index;comment:order值大的排序靠前" json:"order"`
+	DepartmentList constants.Int64ArrayField `gorm:"type:jsonb;comment:该标签组可用部门列表,默认0全部可用;" json:"department_list"`
 	Tags           []Tag                     `gorm:"foreignKey:ExtGroupID;references:ExtID" json:"tags"`
 	Timestamp
 }
 
 func (tg TagGroup) ExchangeOrder(ID string, ID2 string) error {
-	rawSQL := `update tag_group a, tag_group b set a.order = b.order, b.order= a.order,a.updated_at = b.updated_at, b.updated_at= a.updated_at where a.id =? and b.id = ?;`
-	return DB.Exec(rawSQL, ID, ID2).Error
+	// PostgreSQL: 使用事务交换两条记录的 order 和 updated_at
+	return DB.Transaction(func(tx *gorm.DB) error {
+		var a, b TagGroup
+		if err := tx.Where("id = ?", ID).First(&a).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("id = ?", ID2).First(&b).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&TagGroup{}).Where("id = ?", ID).Updates(map[string]interface{}{
+			"order":      b.Order,
+			"updated_at": b.UpdatedAt,
+		}).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&TagGroup{}).Where("id = ?", ID2).Updates(map[string]interface{}{
+			"order":      a.Order,
+			"updated_at": a.UpdatedAt,
+		}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 // Query
@@ -68,22 +89,25 @@ func (tg TagGroup) Query(param requests.TagListReq, extCorpID string) (groups []
 		db = db.Where("tag_group.name like ? or tag.name like ?", param.Name+"%", param.Name+"%")
 	}
 
-	err = db.Distinct("tag_group.id").Count(&total).Error
+	// 使用新的 Session 进行 count，避免 Distinct 影响后续查询
+	err = db.Session(&gorm.Session{}).Distinct("tag_group.id").Count(&total).Error
 	if err != nil {
 		err = errors.WithStack(err)
 		return
 	}
 
 	param.Sorter.SetDefault()
-	db = db.Order("tag_group.order desc,tag_group.updated_at desc")
-
 	param.Pager.SetDefault()
-	db = db.Offset(param.Pager.GetOffset()).Limit(param.Pager.GetLimit())
 
 	groups = make([]*TagGroup, 0)
+	// PostgreSQL: 使用子查询去重，避免 DISTINCT ON 与 ORDER BY 冲突
 	err = db.Preload("Tags", func(db *gorm.DB) *gorm.DB {
 		return db.Order("tag.order DESC")
-	}).Select("tag_group.*").Group("tag_group.id").Find(&groups).Error
+	}).Select("tag_group.*").
+		Group("tag_group.id, tag_group.ext_corp_id, tag_group.ext_id, tag_group.name, tag_group.department_list, tag_group.\"order\", tag_group.created_at, tag_group.updated_at, tag_group.deleted_at").
+		Order("tag_group.order desc, tag_group.updated_at desc").
+		Offset(param.Pager.GetOffset()).Limit(param.Pager.GetLimit()).
+		Find(&groups).Error
 	if err != nil {
 		err = errors.WithStack(err)
 		return

@@ -15,7 +15,7 @@ type CustomerStaffTag struct {
 	// TagName 该成员添加此外部联系人所打标签名称
 	TagName string `json:"tag_name"`
 	// Type 该成员添加此外部联系人所打标签类型, 1-企业设置, 2-用户自定义
-	Type constants.FollowUserTagType `gorm:"type:tinyint" json:"type"`
+	Type constants.FollowUserTagType `gorm:"type:smallint" json:"type"`
 	Timestamp
 }
 

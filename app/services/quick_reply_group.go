@@ -1,7 +1,6 @@
 package services
 
 import (
-	"github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
 	"openscrm/app/constants"
@@ -46,8 +45,7 @@ func (o QuickReplyGroup) Create(req entities.CreateQuickReplyGroupReq, extCorpID
 
 	err := o.QuickReplyGroupRepo.Create(topGroup)
 
-	mysqlErr := &mysql.MySQLError{}
-	if errors.As(err, &mysqlErr) && mysqlErr.Number == 1062 {
+	if ecode.IsDuplicateKeyError(err) {
 		return models.QuickReplyGroup{}, ecode.DuplicateQuickReplyGroupNameError
 	}
 	return topGroup, err

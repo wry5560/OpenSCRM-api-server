@@ -207,6 +207,9 @@ func (o *TimeField) Scan(value interface{}) (err error) {
 }
 
 func (o TimeField) Value() (driver.Value, error) {
+	if string(o) == "" {
+		return nil, nil
+	}
 	return string(o), nil
 }
 

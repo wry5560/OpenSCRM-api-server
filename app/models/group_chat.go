@@ -20,11 +20,11 @@ type GroupChat struct {
 	CreateTime         time.Time                  `gorm:"comment:创建时间" json:"create_time"`
 	Notice             string                     `gorm:"type:text;comment:群公告" json:"notice"`
 	MemberList         []GroupChatMember          `gorm:"foreignKey:ExtChatID;references:ExtChatID;" json:"member_list"`
-	AdminList          constants.StringArrayField `gorm:"type:json;comment:群管理员列表" json:"admin_list"`
-	Status             constants.GroupChatStatus  `gorm:"type:tinyint unsigned;default:2;comment:群状态 1-解散 2-未解散" json:"status"`
-	Total              int64                      `gorm:"type:int unsigned;default:0;comment:群人数" json:"total"`
-	TodayJoinMemberNum int64                      `gorm:"type:int unsigned;default:0;comment:今日进群人数" json:"today_join_member_num"`
-	TodayQuitMemberNum int64                      `gorm:"type:int unsigned;default:0;comment:今日退群人数" json:"today_quit_member_num"`
+	AdminList          constants.StringArrayField `gorm:"type:jsonb;comment:群管理员列表" json:"admin_list"`
+	Status             constants.GroupChatStatus  `gorm:"type:smallint;default:2;comment:群状态 1-解散 2-未解散" json:"status"`
+	Total              int64                      `gorm:"type:integer;default:0;comment:群人数" json:"total"`
+	TodayJoinMemberNum int64                      `gorm:"type:integer;default:0;comment:今日进群人数" json:"today_join_member_num"`
+	TodayQuitMemberNum int64                      `gorm:"type:integer;default:0;comment:今日退群人数" json:"today_quit_member_num"`
 	Tags               []GroupChatTag             `gorm:"many2many:group_chat_tags" json:"tags"`
 	OwnerAvatarURL     string                     `gorm:"->" json:"owner_avatar_url"`
 	OwnerRoleType      string                     `gorm:"->" json:"owner_role_type"`
@@ -48,6 +48,10 @@ func (g GroupChat) TableName() string {
 }
 
 func (g GroupChat) Upsert(chat GroupChat) error {
+	// 保存 MemberList 并清空，避免 GORM 自动创建关联记录
+	memberList := chat.MemberList
+	chat.MemberList = nil
+
 	err := DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "ext_chat_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"name", "owner", "create_time", "notice", "admin_list", "total"})},
@@ -55,13 +59,23 @@ func (g GroupChat) Upsert(chat GroupChat) error {
 	if err != nil {
 		return err
 	}
-	return GroupChatMember{}.Upsert(chat.MemberList)
+	// 单独处理 MemberList 的 upsert
+	if len(memberList) > 0 {
+		return GroupChatMember{}.Upsert(memberList)
+	}
+	return nil
 }
 
 func (g GroupChat) Query(req requests.QueryGroupChatReq, extCorpID string, pager *app.Pager, sorter *app.Sorter) (gc []GroupChat, total int64, err error) {
 	gc = make([]GroupChat, 0)
 
 	db := DB.Table("group_chat").Joins("left join staff on staff.ext_id = group_chat.owner")
+
+	// 按客户ID过滤群聊（查询客户所在的群）
+	if req.ExtCustomerID != "" {
+		db = db.Joins("inner join group_chat_member on group_chat_member.ext_chat_id = group_chat.ext_chat_id").
+			Where("group_chat_member.userid = ?", req.ExtCustomerID)
+	}
 
 	if len(req.Owners) != 0 {
 		db = db.Where("owner in (?)", req.Owners)
@@ -84,7 +98,7 @@ func (g GroupChat) Query(req requests.QueryGroupChatReq, extCorpID string, pager
 			Where("group_chat_tags.group_chat_tag_id in (?)", req.GroupTagIDs.ToInt64Array())
 	}
 
-	err = db.Count(&total).Error
+	err = db.Session(&gorm.Session{}).Count(&total).Error
 	if err != nil || total == 0 {
 		err = errors.Wrap(err, "Count GroupChatReq failed")
 		return
@@ -173,7 +187,8 @@ func (g GroupChat) UpdateTags(gid string, addTagIDs constants.StringArrayField, 
 	return DB.Transaction(func(tx *gorm.DB) error {
 		if len(addTagIDs) > 0 {
 			for _, tid := range addTagIDs {
-				rowSQL := `replace into group_chat_tags ( group_chat_id, group_chat_tag_id ) values ( ?, ? )`
+				// PostgreSQL: 使用 INSERT ... ON CONFLICT DO NOTHING 替代 MySQL 的 REPLACE INTO
+				rowSQL := `INSERT INTO group_chat_tags (group_chat_id, group_chat_tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`
 				err := DB.Exec(rowSQL, gid, tid).Error
 				if err != nil {
 					return err

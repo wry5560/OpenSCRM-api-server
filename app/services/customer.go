@@ -71,17 +71,21 @@ func NewCustomer() *CustomerService {
 // Param: extCorpID 外部企业ID
 // return: err
 func (o CustomerService) Sync(extCorpID string) error {
-	client, err := GetCorpWxClient(extCorpID)
+	// 从数据库获取已同步的员工ID，避免调用通讯录同步助手API（可能有权限问题）
+	staffModel := models.Staff{}
+	staffExtIDs, err := staffModel.GetAllStaffIDs()
 	if err != nil {
 		err = errors.WithStack(err)
 		return err
 	}
 
-	staffIds, err := client.Contact.ListUserIds()
-	if err != nil {
-		err = errors.WithStack(err)
-		return err
+	// 转换为 UserIdInfo 结构
+	staffIds := make([]*workwx.UserIdInfo, 0, len(staffExtIDs))
+	for _, extID := range staffExtIDs {
+		staffIds = append(staffIds, &workwx.UserIdInfo{UserId: extID})
 	}
+
+	log.Sugar.Infow("开始同步客户数据", "staffCount", len(staffIds))
 
 	totalExtCustomerIDs, err := o.BatchFetchCustomers(staffIds)
 	if err != nil {

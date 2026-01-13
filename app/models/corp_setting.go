@@ -13,7 +13,7 @@ type CorpSetting struct {
 	ExtCorpID string `json:"ext_corp_id" gorm:"uniqueIndex:ext_corp_id;;type:char(18);comment:外部企业ID" validate:ext_corp_id"`
 	// ExtCreatorID 创建者外部员工ID
 	ExtCreatorID   string            `json:"ext_creator_id" gorm:"index;type:char(64);comment:创建者外部员工ID" validate:"word"`
-	IsMaterialUsed constants.Boolean `json:"is_material_used" gorm:"type:tinyint unsigned"`
+	IsMaterialUsed constants.Boolean `json:"is_material_used" gorm:"type:smallint"`
 	Timestamp
 }
 

@@ -17,12 +17,13 @@ Server:
   WriteTimeout: 60
   MsgArchSrvHost: msg-archive-server
 
-# Docker MySQL 服务
+# Docker PostgreSQL 服务
 DB:
-  Host: mysql:3306
+  Host: postgres:5432
   User: open_scrm
   Name: open_scrm
   Password: OpenSCRM2024!
+  SSLMode: disable
 
 # Docker Redis 服务
 Redis:

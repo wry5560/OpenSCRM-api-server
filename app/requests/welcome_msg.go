@@ -8,7 +8,7 @@ type UpdateWelcomeMsgReq struct {
 	// 标题
 	Name string `json:"name" validate:"required"`
 	// 主欢迎语内容
-	WelcomeMsg constants.AutoReplyField `json:"welcome_msg" validate:"dive"`
+	WelcomeMsg constants.AutoReplyField `json:"welcome_msg" validate:"omitempty"`
 	// 可用员工部门id
 	ExtDepartmentIDs []int64 `json:"ext_department_ids" validate:"omitempty"`
 	// 可用员工id列表
@@ -23,7 +23,7 @@ type CreateWelcomeMsgReq struct {
 	// 标题
 	Name string `json:"name" validate:"required"`
 	// 主欢迎语内容
-	WelcomeMsg constants.AutoReplyField `json:"welcome_msg" validate:"required,dive"`
+	WelcomeMsg constants.AutoReplyField `json:"welcome_msg" validate:"required"`
 	// 可用员工组id
 	ExtDepartmentIDs []int64 `json:"ext_department_ids" validate:"omitempty"`
 	// 可用员工id列表,内部id,可用员工id列表和可用部门id列表均为空，则所有部门可用

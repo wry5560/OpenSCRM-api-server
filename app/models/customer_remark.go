@@ -10,17 +10,29 @@ type CustomerRemark struct {
 	Name         string         `gorm:"type:char(64);uniqueIndex:idx_corp_id_name;" json:"name"`
 	FieldType    string         `json:"field_type"` // todo rename to remark_type
 	HasStaffUsed bool           `json:"has_staff_used"`
-	RankNum      int            `gorm:"type:int unsigned" json:"rank_num"`
+	RankNum      int            `gorm:"type:integer" json:"rank_num"`
 	Options      []RemarkOption `gorm:"foreignKey:RemarkID" json:"info_option"`
 	Timestamp
 }
 
 func (r CustomerRemark) ExchangeOrder(id string, id2 string) error {
-	rawSQL := `update custom_remark a, custom_remark b
-	set a.rank_num = b.rank_num,
-		b.rank_num= a.rank_num
-	where a.id =? and b.id = ?;`
-	return DB.Exec(rawSQL, id, id2).Error
+	// PostgreSQL: 使用事务交换两条记录的 rank_num
+	return DB.Transaction(func(tx *gorm.DB) error {
+		var a, b CustomerRemark
+		if err := tx.Where("id = ?", id).First(&a).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("id = ?", id2).First(&b).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&CustomerRemark{}).Where("id = ?", id).Update("rank_num", b.RankNum).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&CustomerRemark{}).Where("id = ?", id2).Update("rank_num", a.RankNum).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 // RemarkOption 对于多选类型信息的选项
@@ -32,17 +44,19 @@ type RemarkOption struct {
 }
 
 func (r CustomerRemark) Create(remark CustomerRemark) error {
-	tx := DB.Begin()
-	defer tx.Rollback()
-	err := DB.Create(&remark).Error
-	if err != nil {
-		return err
-	}
-	updateRankNumSQL := `UPDATE custom_remark a
-	inner join ( select corp_id, max(rank_num) as rank_num from custom_remark where corp_id = ? group by corp_id) b on a.corp_id = b.corp_id
-		set a.rank_num=b.rank_num + 1
-		where a.id = ? and a.corp_id = ?;`
-	return DB.Exec(updateRankNumSQL, remark.ExtCorpID, remark.ID, remark.ExtCorpID).Error
+	return DB.Transaction(func(tx *gorm.DB) error {
+		// 创建记录
+		if err := tx.Create(&remark).Error; err != nil {
+			return err
+		}
+		// 获取当前最大 rank_num
+		var maxRankNum int
+		tx.Model(&CustomerRemark{}).Where("ext_corp_id = ?", remark.ExtCorpID).
+			Select("COALESCE(MAX(rank_num), 0)").Scan(&maxRankNum)
+		// 更新新记录的 rank_num
+		return tx.Model(&CustomerRemark{}).Where("id = ?", remark.ID).
+			Update("rank_num", maxRankNum+1).Error
+	})
 }
 
 func (r CustomerRemark) Delete(ids []string, extCorpID string) error {

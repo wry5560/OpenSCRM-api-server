@@ -181,7 +181,7 @@ func (o MassMsgService) UpdateMassMsg(
 		err = errors.WithStack(err)
 		return
 	}
-	if total != 0 {
+	if total == 0 {
 		err = ecode.NoMassMsgReceiversErr
 		return
 	}
@@ -319,6 +319,7 @@ func (o MassMsgService) SendMassMsgToWx(body string, msgID string) (extMsgID str
 		err = errors.WithStack(err)
 		return
 	}
+	log.Sugar.Infow("GetExtStaffIDs result", "msgID", msgID, "count", len(staffCustomers), "staffCustomers", staffCustomers)
 
 	// Map 员工->客户列表
 	staffCustomerMap := map[string][]string{}
@@ -326,6 +327,7 @@ func (o MassMsgService) SendMassMsgToWx(body string, msgID string) (extMsgID str
 		extStaffID := StaffCustomer.ExtStaffID
 		staffCustomerMap[extStaffID] = append(staffCustomerMap[extStaffID], StaffCustomer.ExtCustomerID)
 	}
+	log.Sugar.Infow("staffCustomerMap", "map", staffCustomerMap)
 
 	client, err := we_work.Clients.Get(conf.Settings.WeWork.ExtCorpID)
 	if err != nil {
@@ -334,20 +336,22 @@ func (o MassMsgService) SendMassMsgToWx(body string, msgID string) (extMsgID str
 	}
 	for extStaffID, extCustomerIDs := range staffCustomerMap {
 		if len(extCustomerIDs) <= 0 || extCustomerIDs[0] == "" {
+			log.Sugar.Warnw("skipping empty customer list", "extStaffID", extStaffID)
 			continue
 		}
 		template.Sender = extStaffID
 		template.ExternalUserid = staffCustomerMap[extStaffID]
 
-		log.Sugar.Debugw(util.JsonEncode(template))
+		log.Sugar.Infow("Calling AddMsgTemplate", "sender", extStaffID, "customerCount", len(extCustomerIDs), "template", util.JsonEncode(template))
 
 		//同一个企业每个自然月内仅可针对一个客户/客户群发送4条消息，超过接收上限的客户将无法再收到群发消息
 		//接受消息的userid列表中每个id接收者都已收到超过4条消息, 则会返回 no customer to send 错误
 		extMsgID, _, err = client.Customer.AddMsgTemplate(template)
 		if err != nil {
-			log.Sugar.Error("AddMsgTemplate failed", err)
+			log.Sugar.Errorw("AddMsgTemplate failed", "error", err, "sender", extStaffID)
 			return
 		}
+		log.Sugar.Infow("AddMsgTemplate success", "extMsgID", extMsgID, "sender", extStaffID)
 	}
 
 	return extMsgID, err
@@ -361,6 +365,11 @@ func (o MassMsgService) Notify(ids []string, extCorpID string) error {
 	if err != nil {
 		err = errors.WithStack(err)
 		return err
+	}
+	// 如果没有需要通知的员工-客户记录，直接返回
+	if len(staffCustomerIDs) == 0 {
+		log.Sugar.Info("no staff-customer records to notify")
+		return nil
 	}
 	client, err := we_work.Clients.Get(extCorpID)
 	if err != nil {

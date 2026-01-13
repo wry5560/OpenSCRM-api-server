@@ -9,6 +9,7 @@ import (
 	"openscrm/app/requests"
 	"openscrm/common/app"
 	"openscrm/common/id_generator"
+	"openscrm/common/util"
 	"openscrm/conf"
 	"time"
 )
@@ -19,9 +20,9 @@ import (
 type CustomerStaffRelationHistory struct {
 	ExtCorpModel
 	// 企微员工ID
-	ExtStaffID string `gorm:"type:char(64);index;comment:员工ID" json:"ext_staff_id"`
+	ExtStaffID string `gorm:"type:varchar(64);index;comment:员工ID" json:"ext_staff_id"`
 	// 企微客户ID
-	ExtCustomerID string `gorm:"type:char(64);index;comment:客户ID" json:"ext_customer_id"`
+	ExtCustomerID string `gorm:"type:varchar(64);index;comment:客户ID" json:"ext_customer_id"`
 	// 员工添加客户的时间,与wx返回的一致，以便使用copier
 	Createtime time.Time `gorm:"comment:员工添加客户的时间" json:"createtime"`
 	// 客户删除员工的时间
@@ -126,7 +127,7 @@ func (o CustomerStaffRelationHistory) QueryStaffDeleteCustomer(
 			" staff.avatar_url as ext_staff_avatar ")
 
 	if req.ExtDepartmentID != 0 {
-		db = db.Where("  json_contains(staff.dept_ids, json_array(?) )", req.ExtDepartmentID)
+		db = db.Where("staff.dept_ids @> ?::jsonb", util.ToJSONBSingleArray(req.ExtDepartmentID))
 	}
 
 	if len(req.ExtStaffIDs) > 0 {
@@ -187,7 +188,7 @@ func (o CustomerStaffRelationHistory) QueryCustomerDeleteStaff(
 			" s.ext_id as ext_staff_id, " +
 			" s.id as staff_id, " +
 			" s.avatar_url as staff_avatar, " +
-			" timestampdiff(day, customer_staff_relation_history.createtime ,customer_staff_relation_history.customer_delete_staff_at) as in_connection_time_range").
+			" EXTRACT(DAY FROM (customer_staff_relation_history.customer_delete_staff_at - customer_staff_relation_history.createtime))::integer as in_connection_time_range").
 		Where("customer_staff_relation_history.customer_delete_staff_at is not null")
 
 	if extCorpID != "" {
@@ -207,11 +208,11 @@ func (o CustomerStaffRelationHistory) QueryCustomerDeleteStaff(
 	}
 
 	if req.TimeSpanLowerLimit > 0 {
-		db = db.Where(" timestampdiff(day,  customer_staff_relation_history.createtime, customer_staff_relation_history.customer_delete_staff_at)  > ?", req.TimeSpanLowerLimit)
+		db = db.Where(" EXTRACT(DAY FROM (customer_staff_relation_history.customer_delete_staff_at - customer_staff_relation_history.createtime))::integer > ?", req.TimeSpanLowerLimit)
 	}
 
 	if req.TimeSpanUpperLimit > 0 {
-		db = db.Where(" timestampdiff(day,  customer_staff_relation_history.createtime, customer_staff_relation_history.customer_delete_staff_at) < ?", req.TimeSpanUpperLimit)
+		db = db.Where(" EXTRACT(DAY FROM (customer_staff_relation_history.customer_delete_staff_at - customer_staff_relation_history.createtime))::integer < ?", req.TimeSpanUpperLimit)
 	}
 
 	var total int64

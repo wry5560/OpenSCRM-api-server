@@ -1,7 +1,6 @@
 package services
 
 import (
-	"github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
 	"openscrm/app/models"
 	"openscrm/app/requests"
@@ -38,8 +37,7 @@ func (o GroupChatTagGroup) Create(req *requests.CreateGroupChatTagGroupReq, extC
 	tg.Tags = tags
 	err := o.model.Create(tg)
 
-	mysqlErr := &mysql.MySQLError{}
-	if errors.As(err, &mysqlErr) && mysqlErr.Number == 1062 {
+	if ecode.IsDuplicateKeyError(err) {
 		return tg, ecode.DuplicateTagGroupError
 	}
 	return tg, err

@@ -21,6 +21,13 @@ type FileStorageInterface interface {
 
 func Setup(conf setting.StorageConfig) {
 	var err error
+
+	// 存储功能禁用
+	if conf.Type == "" {
+		log.Sugar.Info("Storage is disabled (STORAGE_TYPE not set)")
+		return
+	}
+
 	if conf.Type == string(constants.AliyunStorage) {
 		FileStorage, err = NewOSS(conf)
 		if err != nil {
@@ -34,6 +41,15 @@ func Setup(conf setting.StorageConfig) {
 		FileStorage, err = NewCOS(conf)
 		if err != nil {
 			log.TracedError("NewCOS failed", err)
+			os.Exit(1)
+			return
+		}
+	}
+
+	if conf.Type == string(constants.LocalStorage) {
+		FileStorage, err = NewLocalStorage(conf)
+		if err != nil {
+			log.TracedError("NewLocalStorage failed", err)
 			os.Exit(1)
 			return
 		}

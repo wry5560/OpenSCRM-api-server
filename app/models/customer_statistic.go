@@ -19,11 +19,11 @@ type CustomerStatistic struct {
 	ExtCorpModel
 	ExtStaffID string `json:"ext_staff_id" gorm:"type:char(48);unique_index:ext_staff_id_date;comment:外部员工ID"`
 	// 总客户数
-	TotalCustomerNum int64 `json:"total_customer_num" gorm:"type:bigint unsigned;comment:客户总数"`
+	TotalCustomerNum int64 `json:"total_customer_num" gorm:"type:bigint;comment:客户总数"`
 	// 新增客户数
-	IncreaseCustomerNum int64 `json:"increase_customer_num"  gorm:"type:bigint unsigned;comment:新增客户总数"`
+	IncreaseCustomerNum int64 `json:"increase_customer_num"  gorm:"type:bigint;comment:新增客户总数"`
 	// 流失客户数
-	DecreaseCustomerNum int64 `json:"decrease_customer_num"  gorm:"type:bigint unsigned;comment:流失客户总数"`
+	DecreaseCustomerNum int64 `json:"decrease_customer_num"  gorm:"type:bigint;comment:流失客户总数"`
 	// 净增加客户数 = IncreaseCustomerNum -  DecreaseCustomerNum
 	// 日期
 	Date constants.DateField `json:"date" gorm:"unique_index:ext_staff_id_date;comment:日期"`

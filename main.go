@@ -31,7 +31,16 @@ import (
 )
 
 func init() {
-	err := conf.SetupSetting()
+	// 优先从环境变量加载配置，如果 DB_HOST 环境变量存在则使用环境变量配置
+	// 否则回退到 config.yaml 文件配置
+	var err error
+	if os.Getenv("DB_HOST") != "" {
+		err = conf.SetupSettingFromEnv()
+		log.Println("Loading configuration from environment variables")
+	} else {
+		err = conf.SetupSetting()
+		log.Println("Loading configuration from config.yaml")
+	}
 	if err != nil {
 		log.Fatalf("init.setupSetting err: %v", err)
 	}

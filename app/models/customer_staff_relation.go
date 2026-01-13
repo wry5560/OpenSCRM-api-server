@@ -6,6 +6,7 @@ import (
 	"openscrm/app/constants"
 	"openscrm/app/requests"
 	"openscrm/common/app"
+	"openscrm/common/util"
 	"time"
 )
 
@@ -29,9 +30,9 @@ type CustomerStaffRelation struct {
 type CustomerStaff struct {
 	ExtCorpModel
 	// 企微员工ID
-	ExtStaffID string `gorm:"type:char(64);index;uniqueIndex:idx_ext_staff_id_ext_customer_id;comment:员工ID" json:"ext_staff_id"`
+	ExtStaffID string `gorm:"type:varchar(64);index;uniqueIndex:idx_ext_staff_id_ext_customer_id;comment:员工ID" json:"ext_staff_id"`
 	// 企微客户ID
-	ExtCustomerID string `gorm:"type:char(64);index;uniqueIndex:idx_ext_staff_id_ext_customer_id;comment:客户ID" json:"ext_customer_id"`
+	ExtCustomerID string `gorm:"type:varchar(64);index;uniqueIndex:idx_ext_staff_id_ext_customer_id;comment:客户ID" json:"ext_customer_id"`
 	// 员工对客户的备注
 	Remark string `gorm:"type:varchar(255);comment:员工对客户的备注" json:"remark"`
 	// 员工对客户的描述
@@ -41,23 +42,23 @@ type CustomerStaff struct {
 	// 员工对客户备注的企业名称
 	RemarkCorpName string `gorm:"type:varchar(255);comment:员工对客户备注的企业名称" json:"remark_corp_name"`
 	// RemarkMobiles 对此客户备注的手机号码，第三方不可获取
-	RemarkMobiles constants.StringArrayField `gorm:"type:json;comment:对此客户备注的手机号码" json:"remark_mobiles"`
+	RemarkMobiles constants.StringArrayField `gorm:"type:jsonb;comment:对此客户备注的手机号码" json:"remark_mobiles"`
 	// 添加此客户的来源 0-未知来源 1-扫描二维码 2-搜索手机号 3-名片分享 4-群聊 5-手机通讯录 6-微信联系人 7-来自微信的添加好友申请 8-安装第三方应用时自动添加的客服人员 9-搜索邮箱 201-内部成员共享 202-管理员/负责人分配
-	AddWay constants.FollowUserAddWay `gorm:"tinyint(8);comment:添加此客户的来源,0-未知来源 1-扫描二维码 2-搜索手机号 3-名片分享 4-群聊 5-手机通讯录 6-微信联系人 7-来自微信的添加好友申请 8-安装第三方应用时自动添加的客服人员 9-搜索邮箱 201-内部成员共享 202-管理员/负责人分配" json:"add_way"`
+	AddWay constants.FollowUserAddWay `gorm:"type:smallint;comment:添加此客户的来源,0-未知来源 1-扫描二维码 2-搜索手机号 3-名片分享 4-群聊 5-手机通讯录 6-微信联系人 7-来自微信的添加好友申请 8-安装第三方应用时自动添加的客服人员 9-搜索邮箱 201-内部成员共享 202-管理员/负责人分配" json:"add_way"`
 	// 发起添加的userid
 	OperUserID string `gorm:"type:varchar(255);comment:发起添加的userid" json:"oper_user_id"`
 	// 区分客户具体是通过哪个「联系我」添加，由企业通过创建「联系我」方式指定
 	State string `gorm:"type:varchar(255);comment:区分客户具体是通过哪个「联系我」添加，由企业通过创建「联系我」方式指定" json:"state"`
 	// 是否已发送通知，成员删除客户通知管理员，客户删除成员通知成员
-	IsNotified constants.IsNotified `gorm:"type:tinyint;comment:是否已发送通知 1-是 2-否" json:"is_notified"`
+	IsNotified constants.IsNotified `gorm:"type:smallint;comment:是否已发送通知 1-是 2-否" json:"is_notified"`
 	// Tags 员工给客户的标签
 	CustomerStaffTags []CustomerStaffTag         `gorm:"foreignKey:CustomerStaffID;references:ID" json:"customer_staff_tags"`
-	InternalTagIDs    constants.StringArrayField `gorm:"type:json" json:"internal_tag_ids"`
+	InternalTagIDs    constants.StringArrayField `gorm:"type:jsonb" json:"internal_tag_ids"`
 	InternalTags      []InternalTag              `gorm:"-" json:"internal_tags"`
 	// 员工给客户的设置的信息
 	// CustomerInfo CustomerInfo `gorm:"foreignKey:CustomerInfoID;references:ID" json:"customer_info" `
 	// extStaffId-extCustomerID hash,用于批量操作
-	Signature string `gorm:"type:char(64);index" json:"signature"`
+	Signature string `gorm:"type:varchar(64);index" json:"signature"`
 	Timestamp
 }
 
@@ -75,7 +76,7 @@ func (o CustomerStaff) GetAllCustomerDeleteStaff(req requests.QueryCustomerLosse
 			" s.ext_id as ext_staff_id, " +
 			" s.id as staff_id, " +
 			" s.avatar_url as staff_avatar, " +
-			" day(timediff(customer_staff.createtime, customer_delete_staff_at)) as in_connection_time_range, " +
+			" EXTRACT(DAY FROM (customer_delete_staff_at - customer_staff.createtime))::integer as in_connection_time_range, " +
 			" customer_staff.ext_tag_ids as ext_tag_ids ").
 		Where("customer_delete_staff_at is not null")
 
@@ -96,11 +97,13 @@ func (o CustomerStaff) GetAllCustomerDeleteStaff(req requests.QueryCustomerLosse
 	}
 
 	if req.TimeSpanLowerLimit > 0 {
-		db = db.Where(" day(timediff(staff_delete_customer_at, customer_delete_staff_at))  > ?", req.TimeSpanLowerLimit)
+		// PostgreSQL: 使用 EXTRACT 替代 MySQL 的 day(timediff())
+		db = db.Where(" EXTRACT(DAY FROM (customer_delete_staff_at - staff_delete_customer_at))::integer > ?", req.TimeSpanLowerLimit)
 	}
 
 	if req.TimeSpanUpperLimit > 0 {
-		db = db.Where(" day(timediff(staff_delete_customer_at, customer_delete_staff_at))  < ?", req.TimeSpanUpperLimit)
+		// PostgreSQL: 使用 EXTRACT 替代 MySQL 的 day(timediff())
+		db = db.Where(" EXTRACT(DAY FROM (customer_delete_staff_at - staff_delete_customer_at))::integer < ?", req.TimeSpanUpperLimit)
 	}
 
 	var total int64
@@ -270,7 +273,8 @@ func (o CustomerStaff) GetAllStaffDeleteCustomer(
 			" s.avatar_url as ext_staff_avatar ")
 
 	if req.ExtDepartmentID != 0 {
-		db = db.Where("  json_contains(s.dept_ids, json_array(?) )", req.ExtDepartmentID)
+		// PostgreSQL JSONB 包含查询
+		db = db.Where("s.dept_ids @> ?::jsonb", util.ToJSONBSingleArray(req.ExtDepartmentID))
 	}
 
 	if len(req.ExtStaffIDs) > 0 {
@@ -331,10 +335,21 @@ func (o CustomerStaff) Create(relation *CustomerStaff) error {
 // Param: 员工客户关系数组
 // return:
 func (o CustomerStaff) BatchUpsert(csRelationModels []CustomerStaff) (ids []string, err error) {
+	// PostgreSQL: 去重避免 ON CONFLICT 报错
+	uniqueMap := make(map[string]CustomerStaff)
+	for _, item := range csRelationModels {
+		key := item.ExtStaffID + "_" + item.ExtCustomerID
+		uniqueMap[key] = item
+	}
+	uniqueModels := make([]CustomerStaff, 0, len(uniqueMap))
+	for _, item := range uniqueMap {
+		uniqueModels = append(uniqueModels, item)
+	}
+
 	err = DB.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "ext_customer_id"}, {Name: "ext_staff_id"}},
+		Columns:   []clause.Column{{Name: "ext_staff_id"}, {Name: "ext_customer_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"remark", "description", "createtime", "remark_corp_name", "remark_mobiles", "state", "oper_user_id", "add_way", "deleted_at"}),
-	}).Omit("CustomerStaffTags").Unscoped().CreateInBatches(&csRelationModels, 100).Error
+	}).Omit("CustomerStaffTags").Unscoped().CreateInBatches(&uniqueModels, 100).Error
 	if err != nil {
 		return
 	}

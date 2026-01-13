@@ -26,6 +26,7 @@ func NewRouter() *gin.Engine {
 	}
 
 	r.Use(m.Tracing())
+	r.Use(m.CORS()) // 添加 CORS 中间件支持明道云 iframe 嵌入
 	//r.Use(m.Translations())
 	r.Use(sessions.SessionsMany([]string{
 		string(c.CustomerSessionName),
@@ -151,6 +152,7 @@ func NewRouter() *gin.Engine {
 		staffAdminPublicApiV1.Any("/action/login", loginHandler.StaffAdminLogin)
 		staffAdminPublicApiV1.GET("/action/login-callback", loginHandler.StaffAdminLoginCallback)
 		staffAdminPublicApiV1.POST("/action/force-login", loginHandler.StaffAdminForceLogin)
+		staffAdminPublicApiV1.POST("/action/logout", loginHandler.StaffAdminLogout)
 
 		//登录后才可访问的Api
 		staffAdminApiV1 := staffAdminPublicApiV1.Use(m.RequireStaffAdminLogin())
@@ -325,6 +327,8 @@ func NewRouter() *gin.Engine {
 		staffAdminApiV1.GET("/quick-replies", m.Guard(c.BizQuickReply, c.Read), quickReply.Query)
 		staffAdminApiV1.POST("/quick-reply/action/delete", m.Guard(c.BizQuickReply, c.Read), quickReply.Delete)
 		staffAdminApiV1.POST("/quick-reply/action/get-upload-url", m.Guard(c.BizQuickReply, c.Full), quickReply.GetUploadURL)
+		// 话术库专用部门列表（无权限校验，仅用于下拉选择）
+		staffAdminApiV1.GET("/quick-reply/departments", department.Query)
 
 		// 企业风控
 		corpRiskMgr := controller.NewCorpRiskMgr()

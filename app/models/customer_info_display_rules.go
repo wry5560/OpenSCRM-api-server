@@ -11,14 +11,14 @@ import (
 type CustomerInfoDisplayRule struct {
 	Model
 	ExtCorpID   string            `gorm:"type:string;size:100;uniqueIndex;comment:企业ID" json:"ext_corp_id"`
-	Age         constants.Boolean `gorm:"type:tinyint unsigned;comment:是否展示年龄" json:"age"`
-	Description constants.Boolean `gorm:"type:tinyint unsigned;comment:是否展示描述" json:"description"`
-	Email       constants.Boolean `gorm:"type:tinyint unsigned;comment:是否展示邮箱" json:"email"`
-	PhoneNumber constants.Boolean `gorm:"type:tinyint unsigned;comment:是否展示电话" json:"phone_number"`
-	QQ          constants.Boolean `gorm:"type:tinyint unsigned;comment:是否展示mqq" json:"qq"`
-	Address     constants.Boolean `gorm:"type:tinyint unsigned;comment:是否展示地址" json:"address"`
-	Birthday    constants.Boolean `gorm:"type:tinyint unsigned;comment:是否展示生日" json:"birthday"`
-	Weibo       constants.Boolean `gorm:"type:tinyint unsigned;comment:是否展示微博" json:"weibo" `
+	Age         constants.Boolean `gorm:"type:smallint;comment:是否展示年龄" json:"age"`
+	Description constants.Boolean `gorm:"type:smallint;comment:是否展示描述" json:"description"`
+	Email       constants.Boolean `gorm:"type:smallint;comment:是否展示邮箱" json:"email"`
+	PhoneNumber constants.Boolean `gorm:"type:smallint;comment:是否展示电话" json:"phone_number"`
+	QQ          constants.Boolean `gorm:"type:smallint;comment:是否展示mqq" json:"qq"`
+	Address     constants.Boolean `gorm:"type:smallint;comment:是否展示地址" json:"address"`
+	Birthday    constants.Boolean `gorm:"type:smallint;comment:是否展示生日" json:"birthday"`
+	Weibo       constants.Boolean `gorm:"type:smallint;comment:是否展示微博" json:"weibo" `
 	Timestamp
 }
 

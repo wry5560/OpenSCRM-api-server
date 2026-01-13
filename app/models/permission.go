@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/jinzhu/copier"
 	"github.com/pkg/errors"
-	"github.com/thoas/go-funk"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"openscrm/app/constants"
@@ -140,7 +139,7 @@ func (o Permission) Delete(ids []string) (total int64, err error) {
 func (o Permission) BatchUpsert(items []*Permission) (err error) {
 	err = DB.Clauses(clause.OnConflict{
 		Columns: []clause.Column{{
-			Name: "identify",
+			Name: "identity",
 		}},
 		DoUpdates: clause.AssignmentColumns([]string{`name`, `description`, `biz_name`, `biz_identity`, `operation`, `updated_at`}),
 		UpdateAll: false,
@@ -154,37 +153,40 @@ func (o Permission) BatchUpsert(items []*Permission) (err error) {
 }
 
 func SetupPermissions() {
-	items := make([]*Permission, 0)
+	// 使用 map 按 Identity 去重
+	itemMap := make(map[string]*Permission)
+
 	for _, permission := range constants.AdminPermissions {
-		item := &Permission{
-			Model:       Model{ID: id_generator.StringID()},
-			Name:        permission.Name,
-			Description: permission.Name,
-			BizIdentity: string(permission.BizIdentity),
-			Operation:   string(permission.Operation),
-			Identity:    fmt.Sprintf("%s_%s", permission.BizIdentity, permission.Operation),
+		identity := fmt.Sprintf("%s_%s", permission.BizIdentity, permission.Operation)
+		if _, exists := itemMap[identity]; !exists {
+			itemMap[identity] = &Permission{
+				Model:       Model{ID: id_generator.StringID()},
+				Name:        permission.Name,
+				Description: permission.Name,
+				BizIdentity: string(permission.BizIdentity),
+				Operation:   string(permission.Operation),
+				Identity:    identity,
+			}
 		}
-		items = append(items, item)
 	}
 
 	for _, permission := range constants.SuperAdminPermissions {
-		item := &Permission{
-			Model:       Model{ID: id_generator.StringID()},
-			Name:        permission.Name,
-			Description: permission.Name,
-			BizIdentity: string(permission.BizIdentity),
-			Operation:   string(permission.Operation),
-			Identity:    fmt.Sprintf("%s_%s", permission.BizIdentity, permission.Operation),
+		identity := fmt.Sprintf("%s_%s", permission.BizIdentity, permission.Operation)
+		if _, exists := itemMap[identity]; !exists {
+			itemMap[identity] = &Permission{
+				Model:       Model{ID: id_generator.StringID()},
+				Name:        permission.Name,
+				Description: permission.Name,
+				BizIdentity: string(permission.BizIdentity),
+				Operation:   string(permission.Operation),
+				Identity:    identity,
+			}
 		}
-		items = append(items, item)
 	}
 
-	result := funk.Uniq(items)
-	var ok bool
-	items, ok = result.([]*Permission)
-	if !ok {
-		log.Logger.Error("SetupPermissions failed")
-		os.Exit(1)
+	items := make([]*Permission, 0, len(itemMap))
+	for _, item := range itemMap {
+		items = append(items, item)
 	}
 
 	err := (&Permission{}).BatchUpsert(items)

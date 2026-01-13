@@ -3,6 +3,9 @@ package conf
 import (
 	"github.com/spf13/viper"
 	"log"
+	"os"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -84,6 +87,7 @@ type DBConfig struct {
 	Password string `validate:"required"`
 	Host     string `validate:"required"`
 	Name     string `validate:"required"`
+	SSLMode  string `validate:"omitempty,oneof=disable require verify-ca verify-full"`
 }
 
 // redisConfig redis config
@@ -97,8 +101,9 @@ type redisConfig struct {
 }
 
 type StorageConfig struct {
-	// Type 存储类型, 可配置aliyun, qcloud；分别对应阿里云OSS, 腾讯云COS
-	Type string `validate:"required,oneof=aliyun qcloud"`
+	// Type 存储类型, 可配置aliyun, qcloud, local；分别对应阿里云OSS, 腾讯云COS, 本地存储
+	// 留空则禁用存储功能
+	Type string `validate:"omitempty,oneof=aliyun qcloud local"`
 	// CdnURL CDN绑定域名，可选配置，本地存储必填
 	CdnURL string `validate:"omitempty,url"`
 
@@ -175,4 +180,112 @@ func SetupTestSetting() error {
 	Settings.Redis.IdleTimeout = Settings.Redis.IdleTimeout * time.Second
 	Settings.Redis.ReadTimeout = Settings.Redis.ReadTimeout * time.Second
 	return nil
+}
+
+// SetupSettingFromEnv 从环境变量加载配置
+func SetupSettingFromEnv() error {
+	Settings = &config{
+		App: AppConfig{
+			Name:               getEnv("APP_NAME", "openscrm"),
+			Key:                getEnvRequired("APP_KEY"),
+			Env:                getEnv("APP_ENV", "DEV"),
+			AutoMigration:      getEnvBool("APP_AUTO_MIGRATION", true),
+			AutoSyncWeWorkData: getEnvBool("APP_AUTO_SYNC_WEWORK", false),
+			SuperAdmin:         strings.Split(getEnv("APP_SUPER_ADMIN", "admin"), ","),
+			InnerSrvAppCode:    getEnv("APP_INNER_SRV_CODE", ""),
+		},
+		Server: serverConfig{
+			RunMode:         getEnv("SERVER_RUN_MODE", "debug"),
+			HttpPort:        getEnvInt("SERVER_HTTP_PORT", 9001),
+			HttpHost:        getEnv("SERVER_HTTP_HOST", "0.0.0.0"),
+			ReadTimeout:     time.Duration(getEnvInt("SERVER_READ_TIMEOUT", 60)) * time.Second,
+			WriteTimeout:    time.Duration(getEnvInt("SERVER_WRITE_TIMEOUT", 60)) * time.Second,
+			MsgArchHttpPort: getEnvInt("SERVER_MSG_ARCH_PORT", 9002),
+			MsgArchSrvHost:  getEnv("SERVER_MSG_ARCH_HOST", ""),
+		},
+		DB: DBConfig{
+			Host:     getEnvRequired("DB_HOST"),
+			User:     getEnvRequired("DB_USER"),
+			Password: getEnvRequired("DB_PASSWORD"),
+			Name:     getEnvRequired("DB_NAME"),
+			SSLMode:  getEnv("DB_SSLMODE", "require"),
+		},
+		Redis: redisConfig{
+			Host:        getEnvRequired("REDIS_HOST"),
+			Password:    getEnv("REDIS_PASSWORD", ""),
+			DBNumber:    getEnvInt("REDIS_DB_NUMBER", 0),
+			IdleTimeout: time.Duration(getEnvInt("REDIS_IDLE_TIMEOUT", 300)) * time.Second,
+			ReadTimeout: time.Duration(getEnvInt("REDIS_READ_TIMEOUT", 3)) * time.Second,
+			DialTimeout: time.Duration(getEnvInt("REDIS_DIAL_TIMEOUT", 5)) * time.Second,
+		},
+		DelayQueue: delayQueueConfig{
+			BucketSize:        getEnvInt("DELAY_QUEUE_BUCKET_SIZE", 3),
+			BucketName:        getEnv("DELAY_QUEUE_BUCKET_NAME", "dq_bucket_%d"),
+			QueueName:         getEnv("DELAY_QUEUE_NAME", "dq_queue_%s"),
+			QueueBlockTimeout: getEnvInt("DELAY_QUEUE_BLOCK_TIMEOUT", 2),
+		},
+		Storage: StorageConfig{
+			Type:            getEnv("STORAGE_TYPE", ""), // 留空禁用存储功能
+			CdnURL:          getEnv("STORAGE_CDN_URL", ""),
+			AccessKeyId:     getEnv("STORAGE_ACCESS_KEY_ID", ""),
+			AccessKeySecret: getEnv("STORAGE_ACCESS_KEY_SECRET", ""),
+			EndPoint:        getEnv("STORAGE_ENDPOINT", ""),
+			Bucket:          getEnv("STORAGE_BUCKET", ""),
+			SecretID:        getEnv("STORAGE_SECRET_ID", ""),
+			SecretKey:       getEnv("STORAGE_SECRET_KEY", ""),
+			BucketURL:       getEnv("STORAGE_BUCKET_URL", ""),
+			LocalRootPath:   getEnv("STORAGE_LOCAL_ROOT_PATH", ""),
+			ServerRootPath:  getEnv("STORAGE_SERVER_ROOT_PATH", ""),
+		},
+		WeWork: weWorkConfig{
+			ExtCorpID:          getEnvRequired("WEWORK_EXT_CORP_ID"),
+			ContactSecret:      getEnvRequired("WEWORK_CONTACT_SECRET"),
+			CustomerSecret:     getEnvRequired("WEWORK_CUSTOMER_SECRET"),
+			MainAgentID:        int64(getEnvInt("WEWORK_MAIN_AGENT_ID", 0)),
+			MainAgentSecret:    getEnvRequired("WEWORK_MAIN_AGENT_SECRET"),
+			CallbackToken:      getEnvRequired("WEWORK_CALLBACK_TOKEN"),
+			CallbackAesKey:     getEnvRequired("WEWORK_CALLBACK_AES_KEY"),
+			PriKeyPath:         getEnv("WEWORK_PRI_KEY_PATH", ""),
+			MsgArchBatchSize:   getEnvInt("WEWORK_MSG_ARCH_BATCH_SIZE", 100),
+			MsgArchTimeout:     getEnvInt("WEWORK_MSG_ARCH_TIMEOUT", 10),
+			MsgArchProxy:       getEnv("WEWORK_MSG_ARCH_PROXY", ""),
+			MsgArchProxyPasswd: getEnv("WEWORK_MSG_ARCH_PROXY_PASSWD", ""),
+		},
+	}
+	return nil
+}
+
+// getEnv 获取环境变量，如果不存在则返回默认值
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+// getEnvRequired 获取必需的环境变量，如果不存在则 panic
+func getEnvRequired(key string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		log.Fatalf("Required environment variable not set: %s", key)
+	}
+	return value
+}
+
+// getEnvBool 获取布尔类型的环境变量
+func getEnvBool(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		return strings.ToLower(value) == "true" || value == "1"
+	}
+	return defaultValue
+}
+
+// getEnvInt 获取整数类型的环境变量
+func getEnvInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if intVal, err := strconv.Atoi(value); err == nil {
+			return intVal
+		}
+	}
+	return defaultValue
 }

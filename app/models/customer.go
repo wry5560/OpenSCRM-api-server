@@ -10,7 +10,7 @@ import (
 )
 
 type CustomerExportItem struct {
-	ExtID            string          `gorm:"type:char(64);uniqueIndex:idx_ext_customer_id;comment:微信定义的userID" json:"ext_customer_id"`
+	ExtID            string          `gorm:"type:varchar(64);uniqueIndex:idx_ext_customer_id;comment:微信定义的userID" json:"ext_customer_id"`
 	CustomerName     string          `json:"customer_name"`
 	CustomerCorpName string          `json:"customer_corp_name"`
 	StaffName        string          `json:"staff_name"`
@@ -29,7 +29,7 @@ type CustomerExportItem struct {
 type Customer struct {
 	ExtCorpModel
 	// 微信定义的客户ID
-	ExtID string `gorm:"type:char(64);uniqueIndex:idx_ext_customer_id;comment:微信定义的userID" json:"ext_customer_id"`
+	ExtID string `gorm:"type:varchar(64);uniqueIndex:idx_ext_customer_id;comment:微信定义的userID" json:"ext_customer_id"`
 	// 微信用户对应微信昵称；企业微信用户，则为联系人或管理员设置的昵称、认证的实名和账号名称
 	Name string `gorm:"type:varchar(255);comment:名称，微信用户对应微信昵称；企业微信用户，则为联系人或管理员设置的昵称、认证的实名和账号名称" json:"name"`
 	// 职位,客户为企业微信时使用
@@ -39,12 +39,12 @@ type Customer struct {
 	// 头像
 	Avatar string `gorm:"type:varchar(255);comment:头像" json:"avatar"`
 	// 客户类型 1-微信用户, 2-企业微信用户
-	Type int `gorm:"type:tinyint(1);index;comment:类型,1-微信用户, 2-企业微信用户" json:"type"`
+	Type int `gorm:"type:smallint;index;comment:类型,1-微信用户, 2-企业微信用户" json:"type"`
 	// 0-未知 1-男性 2-女性
-	Gender  int    `gorm:"type:tinyint;comment:性别,0-未知 1-男性 2-女性" json:"gender"`
+	Gender  int    `gorm:"type:smallint;comment:性别,0-未知 1-男性 2-女性" json:"gender"`
 	Unionid string `gorm:"type:varchar(128);comment:微信开放平台的唯一身份标识(微信unionID)" json:"unionid"`
 	// 仅当联系人类型是企业微信用户时有此字段
-	ExternalProfile ExternalProfile `gorm:"type:json;comment:仅当联系人类型是企业微信用户时有此字段" json:"external_profile"`
+	ExternalProfile ExternalProfile `gorm:"type:jsonb;comment:仅当联系人类型是企业微信用户时有此字段" json:"external_profile"`
 	// 所属员工
 	Staffs []CustomerStaff `gorm:"foreignKey:ExtCustomerID;references:ExtID" json:"staff_relations"`
 	// 所属员工
@@ -196,18 +196,20 @@ func (o Customer) ExportQuery(
 	}
 
 	var total int64
-	if err := db.Distinct("customer.id").Count(&total).Error; err != nil {
+	// 使用新的 Session 进行 count，避免 Distinct 影响后续查询
+	if err := db.Session(&gorm.Session{}).Distinct("customer.id").Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
 	pager.SetDefault()
-	db = db.Offset(pager.GetOffset()).Limit(pager.GetLimit())
 
-	err := db.Preload("Staffs").
+	err := db.Offset(pager.GetOffset()).Limit(pager.GetLimit()).
+		Preload("Staffs").
 		Preload("Staffs.CustomerStaffTags").
 		Select("customer.name as customer_name, customer.corp_name as customer_corp_name, " +
-			" s.name as staff_name, cs.remark, cs.description, if(cs.deleted_at is null, '未流失', '已流失') as status," +
-			" cs.createtime, cs.add_way, ci.age,  customer.gender, ci.birthday ,ci.phone_number").
+			" s.name as staff_name, cs.remark, cs.description, " +
+			" CASE WHEN cs.deleted_at IS NULL THEN '未流失' ELSE '已流失' END as status," +
+			" cs.createtime, cs.add_way, ci.age, customer.gender, ci.birthday, ci.phone_number").
 		Find(&customers).Error
 	if err != nil {
 		err = errors.WithStack(err)
@@ -223,51 +225,67 @@ func (o Customer) Query(
 
 	var customers []*Customer
 
-	db := DB.Table("customer").
+	// 构建过滤条件的基础查询
+	filterDB := DB.Table("customer").
 		Joins("left join customer_staff cs on customer.ext_id = cs.ext_customer_id").
 		Joins("left join customer_staff_tag cst on cst.customer_staff_id = cs.id").
 		Where("cs.ext_corp_id = ?", extCorpID)
 
 	if req.Name != "" {
-		db = db.Where("customer.name like ?", req.Name+"%")
+		filterDB = filterDB.Where("customer.name like ?", req.Name+"%")
 	}
 	if req.Gender != 0 {
-		db = db.Where("customer.gender = ?", req.Gender)
+		filterDB = filterDB.Where("customer.gender = ?", req.Gender)
 	}
 	if req.Type != 0 {
-		db = db.Where("customer.type = ?", req.Type)
+		filterDB = filterDB.Where("customer.type = ?", req.Type)
 	}
 	if len(req.ExtStaffIDs) > 0 {
-		db = db.Where("cs.ext_staff_id in (?)", req.ExtStaffIDs)
+		filterDB = filterDB.Where("cs.ext_staff_id in (?)", req.ExtStaffIDs)
 	}
 	if req.StartTime != "" {
-		db = db.Where("createtime between ? and ?", req.StartTime, req.EndTime)
+		filterDB = filterDB.Where("createtime between ? and ?", req.StartTime, req.EndTime)
 	}
 	if len(req.ExtTagIDs) > 0 {
-		//db = db.Where("json_contains(cs.ext_tag_ids, json_array(?))", customerStaff.ExtTagIDs)
-		db = db.Where("cst.ext_tag_id in (?)", req.ExtTagIDs)
+		filterDB = filterDB.Where("cst.ext_tag_id in (?)", req.ExtTagIDs)
 	}
 	if req.ChannelType > 0 {
-		db = db.Where("cs.add_way = ?", req.ChannelType)
+		filterDB = filterDB.Where("cs.add_way = ?", req.ChannelType)
 	}
 	if req.OutFlowStatus == 1 {
-		db = db.Unscoped().Where("cs.deleted_at is not null")
+		filterDB = filterDB.Unscoped().Where("cs.deleted_at is not null")
 	} else if req.OutFlowStatus == 2 {
-		db = db.Where("cs.deleted_at is null")
+		filterDB = filterDB.Where("cs.deleted_at is null")
 	}
 
-	var total int64
-	if err := db.Distinct("customer.id").Count(&total).Error; err != nil {
+	// 获取符合条件的不重复客户 ext_id 列表
+	var customerExtIDs []string
+	if err := filterDB.Session(&gorm.Session{}).Distinct("customer.ext_id").Pluck("customer.ext_id", &customerExtIDs).Error; err != nil {
 		return nil, 0, err
 	}
 
-	pager.SetDefault()
-	db = db.Offset(pager.GetOffset()).Limit(pager.GetLimit())
+	total := int64(len(customerExtIDs))
+	if total == 0 {
+		return customers, 0, nil
+	}
 
-	err := db.Preload("Staffs").
+	// 分页获取 ext_id
+	pager.SetDefault()
+	start := pager.GetOffset()
+	end := start + pager.GetLimit()
+	if start >= int(total) {
+		return customers, total, nil
+	}
+	if end > int(total) {
+		end = int(total)
+	}
+	pagedExtIDs := customerExtIDs[start:end]
+
+	// 使用 ext_id 列表查询客户，并正确加载关联
+	err := DB.Model(&Customer{}).
+		Where("ext_id in (?)", pagedExtIDs).
+		Preload("Staffs", "ext_corp_id = ?", extCorpID).
 		Preload("Staffs.CustomerStaffTags").
-		Select("customer.*").
-		Group("customer.ext_id").
 		Find(&customers).Error
 	if err != nil {
 		err = errors.WithStack(err)

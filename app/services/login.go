@@ -46,9 +46,11 @@ func (o *Login) StaffAdminLogin(extCorpID string, state string, sourceURL string
 		AppID:   extCorpID,
 		AgentID: conf.Settings.WeWork.MainAgentID,
 		RedirectURI: fmt.Sprintf(
-			"%s://%s/api/v1/staff-admin/action/login-callback",
+			"%s://%s/api/v1/staff-admin/action/login-callback?appid=%s&source_url=%s",
 			sourceURLInfo.Scheme,
 			sourceURLInfo.Host,
+			extCorpID,
+			gurl.Encode(sourceURL),
 		),
 		State: state,
 	}

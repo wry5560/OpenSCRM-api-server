@@ -16,7 +16,7 @@ type WelcomeMsg struct {
 	// 标题
 	Name string `json:"name" gorm:"type:char(128);comment:标题"`
 	// 欢迎语内容
-	WelcomeMsg constants.AutoReplyField `gorm:"type:json" json:"welcome_msg"`
+	WelcomeMsg constants.AutoReplyField `gorm:"type:jsonb" json:"welcome_msg"`
 	// 主欢迎语id
 	MainWelcomeMsgID *string `gorm:"type:bigint,comment:主欢迎语id" json:"main_welcome_msg_id"`
 	// 启用分时欢迎语
@@ -24,7 +24,7 @@ type WelcomeMsg struct {
 	// 分时段欢迎语
 	TimePeriodMsg []WelcomeMsg `gorm:"foreignKey:MainWelcomeMsgID;references:ID" json:"time_period_msg"`
 	// 生效时间,n-星期n
-	EffectiveAt constants.Int64ArrayField `gorm:"type:json" json:"effective_at"`
+	EffectiveAt constants.Int64ArrayField `gorm:"type:jsonb" json:"effective_at"`
 	// 分时段欢迎语-开始时间
 	StartTime constants.TimeField `gorm:"comment:分时段欢迎语-开始时间" json:"start_time"`
 	// 分时段欢迎语-结束时间

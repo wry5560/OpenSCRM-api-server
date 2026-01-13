@@ -67,7 +67,7 @@ type ContactWay struct {
 	// AutoTagEnable 是否自动打标签
 	AutoTagEnable constants.Boolean `json:"auto_tag_enable" gorm:"comment:'是否自动打标签'" validate:"oneof=1 2"`
 	// CustomerTagExtIDs 自动打标签绑定的标签ExtID数组
-	CustomerTagExtIDs constants.StringArrayField `json:"customer_tag_ext_ids" gorm:"type:json;comment:'自动打标签绑定的标签ExtID数组'" validate:"omitempty,dive,ext_id"`
+	CustomerTagExtIDs constants.StringArrayField `json:"customer_tag_ext_ids" gorm:"type:jsonb;comment:'自动打标签绑定的标签ExtID数组'" validate:"omitempty,dive,ext_id"`
 	// AutoSkipVerifyEnable 是否开启自动通过好友时段控制
 	AutoSkipVerifyEnable constants.Boolean `json:"auto_skip_verify_enable" gorm:"default:1;comment:是否开启自动通过好友时段控制" validate:"oneof=1 2"`
 	// SkipVerifyStartTime 自动通过好友开启时刻
@@ -75,11 +75,11 @@ type ContactWay struct {
 	// SkipVerifyEndTime 自动通过好友结束时刻
 	SkipVerifyEndTime constants.TimeField `json:"skip_verify_end_time" gorm:"comment:自动通过好友结束时刻" validate:"required_if=AutoSkipVerifyEnable 1,time"`
 	// ExtStaffIDs 实时关联的外部员工ID
-	ExtStaffIDs constants.StringArrayField `json:"ext_staff_ids" gorm:"type:json;comment:'实时关联的外部员工ID'" validate:"omitempty,dive,int64"`
+	ExtStaffIDs constants.StringArrayField `json:"ext_staff_ids" gorm:"type:jsonb;comment:'实时关联的外部员工ID'" validate:"omitempty,dive,int64"`
 	// NicknameBlockEnable 是否开启客户昵称屏蔽欢迎语
 	NicknameBlockEnable constants.Boolean `json:"nickname_block_enable" gorm:"comment:是否开启客户昵称屏蔽欢迎语" validate:"oneof=1 2"`
 	// NicknameBlockList 客户昵称屏蔽欢迎语列表
-	NicknameBlockList constants.StringArrayField `json:"nickname_block_list" gorm:"type:json;comment:'客户昵称屏蔽欢迎语列表'" validate:"omitempty,dive,int64"`
+	NicknameBlockList constants.StringArrayField `json:"nickname_block_list" gorm:"type:jsonb;comment:'客户昵称屏蔽欢迎语列表'" validate:"omitempty,dive,int64"`
 	Timestamp
 }
 

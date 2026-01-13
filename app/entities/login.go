@@ -44,6 +44,8 @@ type StaffAdminLoginCallbackReq struct {
 	AppID string `form:"appid" json:"appid" validate:"required,corp_id"`
 	// Code
 	Code string `form:"code" json:"Code" validate:"required"`
+	// SourceURL 登录来源页面URL，登录成功自动跳转过去
+	SourceURL string `form:"source_url" json:"source_url"`
 	// State
 	State string `form:"state" json:"state"`
 }

@@ -85,17 +85,44 @@ func (o StaffService) SyncStaffByCorp(extCorpID string) (err error) {
 	extDeptIDs := make([]int64, 0)
 	staffDepts := make([]models.StaffDepartment, 0)
 	for _, idInfo := range userIdInfos {
-		staff := models.Staff{
-			ExtCorpID:    conf.Settings.WeWork.ExtCorpID,
-			RoleID:       string(constants.DefaultCorpStaffRoleID),
-			RoleType:     string(constants.RoleTypeStaff),
-			ExtID:        idInfo.UserId,
-			DeptIds:      constants.Int64ArrayField{idInfo.DepartmentId},
-			IsAuthorized: constants.False,
+		// 获取员工详细信息（使用应用 Client 而非通讯录同步助手）
+		userInfo, userErr := client.MainApp.GetUser(idInfo.UserId)
+		if userErr != nil {
+			log.Sugar.Warnw("获取员工详情失败，使用基本信息", "userId", idInfo.UserId, "err", userErr)
+			// 如果获取详情失败，使用基本信息
+			staff := models.Staff{
+				ExtCorpID:    conf.Settings.WeWork.ExtCorpID,
+				RoleID:       string(constants.DefaultCorpStaffRoleID),
+				RoleType:     string(constants.RoleTypeStaff),
+				ExtID:        idInfo.UserId,
+				DeptIds:      constants.Int64ArrayField{idInfo.DepartmentId},
+				IsAuthorized: constants.False,
+			}
+			staff.ID = id_generator.StringID()
+			staffs = append(staffs, staff)
+		} else {
+			// 使用详细信息
+			staff := models.Staff{
+				ExtCorpID:    conf.Settings.WeWork.ExtCorpID,
+				RoleID:       string(constants.DefaultCorpStaffRoleID),
+				RoleType:     string(constants.RoleTypeStaff),
+				ExtID:        userInfo.UserID,
+				Name:         userInfo.Name,
+				Address:      userInfo.Address,
+				Alias:        userInfo.Alias,
+				AvatarURL:    userInfo.AvatarURL,
+				Email:        userInfo.Email,
+				Gender:       constants.UserGender(userInfo.Gender),
+				Status:       constants.UserStatus(userInfo.Status),
+				Mobile:       userInfo.Mobile,
+				QRCodeURL:    userInfo.QRCodeURL,
+				DeptIds:      userInfo.DeptIDs,
+				IsAuthorized: constants.False,
+			}
+			staff.ID = id_generator.StringID()
+			staffs = append(staffs, staff)
 		}
-		staff.ID = id_generator.StringID()
-		staffs = append(staffs, staff)
-		extStaffIDs = append(extStaffIDs, staff.ExtID)
+		extStaffIDs = append(extStaffIDs, idInfo.UserId)
 		staffDepartment := models.StaffDepartment{
 			ExtCorpID:       extCorpID,
 			ExtStaffID:      idInfo.UserId,
@@ -104,6 +131,8 @@ func (o StaffService) SyncStaffByCorp(extCorpID string) (err error) {
 		}
 		staffDepts = append(staffDepts, staffDepartment)
 		extDeptIDs = append(extDeptIDs, idInfo.DepartmentId)
+		// 避免请求过快
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	err = o.staffRepo.BatchUpsert(staffs)

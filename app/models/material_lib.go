@@ -6,6 +6,7 @@ import (
 	"gorm.io/gorm/clause"
 	"openscrm/app/constants"
 	"openscrm/app/requests"
+	"openscrm/common/util"
 )
 
 type Material struct {
@@ -22,7 +23,7 @@ type Material struct {
 	Link string `json:"link" gorm:"type:varchar(255)"`
 	// 链接摘要
 	Digest          string                     `json:"digest" gorm:"type:text;comment:链接类型素材的摘要"`
-	MaterialTagList constants.StringArrayField `json:"material_tag_list" gorm:"type:json"`
+	MaterialTagList constants.StringArrayField `json:"material_tag_list" gorm:"type:jsonb"`
 	Timestamp
 }
 
@@ -64,7 +65,7 @@ func (m Material) Query(req requests.QueryMaterialReq, extCorpID string) (items 
 	if len(req.MaterialTagList) > 0 {
 		db = db.Where(func(db *gorm.DB) *gorm.DB {
 			for _, tagID := range req.MaterialTagList {
-				db = db.Or("json_contains(material_tag_list, json_array(?))", tagID)
+				db = db.Or("material_tag_list @> ?::jsonb", util.ToJSONBSingleArray(tagID))
 			}
 			return db
 		}(DB))

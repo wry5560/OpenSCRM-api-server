@@ -21,6 +21,8 @@ type QueryGroupChatReq struct {
 	GroupTagIDs constants.Int64ArrayField `json:"group_tag_ids" validate:"omitempty" form:"group_tag_ids"`
 	// 群标签ID查询条件，and/or
 	TagsUnionType string `json:"tags_union_type" validate:"omitempty" form:"tags_union_type"`
+	// 客户外部ID，用于查询客户所在的群聊
+	ExtCustomerID string `json:"ext_customer_id" validate:"omitempty" form:"ext_customer_id"`
 	app.Pager
 	app.Sorter
 }

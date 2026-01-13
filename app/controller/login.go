@@ -1,11 +1,14 @@
 package controller
 
 import (
+	"log"
+	"net/http"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/gogf/gf/encoding/gurl"
 	"github.com/gogf/gf/util/grand"
 	"github.com/pkg/errors"
-	"net/http"
 	"openscrm/app/constants"
 	"openscrm/app/entities"
 	"openscrm/app/models"
@@ -58,12 +61,15 @@ func (o *Login) StaffAdminLogin(c *gin.Context) {
 	}
 
 	handler.StaffAdminSession.Set(string(constants.QrcodeAuthState), state)
+	// 将 source_url 存入 session，用于回调时重定向
+	handler.StaffAdminSession.Set(string(constants.LoginSourceURL), req.SourceURL)
 	err = handler.StaffAdminSession.Save()
 	if err != nil {
 		err = errors.Wrap(err, "sess.Save failed")
 		handler.ResponseError(err)
 		return
 	}
+	log.Printf("[Login] State saved to session: %s", state)
 
 	if handler.Ctx.Request.Method == "GET" {
 		handler.Ctx.Redirect(http.StatusFound, item.LocationURL)
@@ -86,20 +92,34 @@ func (o *Login) StaffAdminLogin(c *gin.Context) {
 func (o *Login) StaffAdminLoginCallback(c *gin.Context) {
 	req := entities.StaffAdminLoginCallbackReq{}
 	handler := app.NewHandler(c)
+
+	// 调试日志：记录 cookie 和原始请求参数
+	log.Printf("[LoginCallback] Cookies: %v", c.Request.Cookies())
+	log.Printf("[LoginCallback] Raw URL: %s", c.Request.URL.String())
+	log.Printf("[LoginCallback] Raw query source_url: %s", c.Query("source_url"))
+
 	ok, err := handler.BindAndValidateReq(&req)
 	if !ok {
 		handler.ResponseBadRequestError(errors.WithStack(err))
 		return
 	}
 
+	// 调试日志：记录绑定后的请求参数
+	log.Printf("[LoginCallback] Bound req.SourceURL: %s", req.SourceURL)
+	log.Printf("[LoginCallback] Bound req.State: %s", req.State)
+	log.Printf("[LoginCallback] Bound req.AppID: %s", req.AppID)
+
 	// 验证state，避免csrf攻击
 	state, ok := handler.StaffAdminSession.Get(string(constants.QrcodeAuthState)).(string)
+	log.Printf("[LoginCallback] Session state: %s, found: %v", state, ok)
+
 	if !ok {
-		handler.ResponseBadRequestError(errors.WithStack(err))
+		handler.ResponseBadRequestError(errors.New("session state not found, please try login again"))
 		return
 	}
 
 	if state != req.State {
+		log.Printf("[LoginCallback] State mismatch: session=%s, req=%s", state, req.State)
 		err = ecode.BadRequest
 		handler.ResponseError(err)
 		return
@@ -120,7 +140,53 @@ func (o *Login) StaffAdminLoginCallback(c *gin.Context) {
 		return
 	}
 
-	handler.Ctx.Redirect(http.StatusFound, "/staff-admin/login-callback")
+	// 根据 source_url 重定向，支持明道云等第三方嵌入
+	// 从 session 读取 source_url（因为企微 OAuth 不会保留 redirect_uri 中的自定义参数）
+	redirectURL := "/staff-admin/login-callback"
+	sourceURL, _ := handler.StaffAdminSession.Get(string(constants.LoginSourceURL)).(string)
+	log.Printf("[LoginCallback] Session sourceURL=%s", sourceURL)
+
+	if sourceURL != "" {
+		// URL 解码
+		decodedURL, decodeErr := gurl.Decode(sourceURL)
+		if decodeErr == nil && decodedURL != "" {
+			sourceURL = decodedURL
+		}
+		log.Printf("[LoginCallback] Decoded sourceURL=%s", sourceURL)
+
+		// 如果是明道云页面，重定向到明道云回调页面
+		if strings.Contains(sourceURL, "/mingdaoyun/") {
+			redirectURL = "/mingdaoyun/login-callback"
+			log.Printf("[LoginCallback] Detected mingdaoyun URL, redirecting to %s", redirectURL)
+		} else {
+			redirectURL = sourceURL
+			log.Printf("[LoginCallback] Using sourceURL as redirect: %s", redirectURL)
+		}
+	}
+
+	log.Printf("[LoginCallback] Final redirect URL: %s", redirectURL)
+	handler.Ctx.Redirect(http.StatusFound, redirectURL)
+}
+
+// StaffAdminLogout
+// @tags 企业管理
+// @Summary 企业员工后台退出登录
+// @Produce  json
+// @Success 200 {object} app.JSONResult{} "成功"
+// @Router /api/v1/staff_admin/action/logout [post]
+func (o *Login) StaffAdminLogout(c *gin.Context) {
+	handler := app.NewHandler(c)
+
+	// 清除 session
+	handler.StaffAdminSession.Clear()
+	err := handler.StaffAdminSession.Save()
+	if err != nil {
+		err = errors.Wrap(err, "sess.Save failed")
+		handler.ResponseError(err)
+		return
+	}
+
+	handler.ResponseItem(nil)
 }
 
 // StaffAdminForceLogin

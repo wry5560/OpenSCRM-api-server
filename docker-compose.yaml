@@ -14,20 +14,19 @@ services:
       timeout: 10s
       retries: 3
 
-  mysql:
-    image: 'mysql:8.0'
+  postgres:
+    image: 'postgres:15'
     restart: always
     environment:
-      MYSQL_USER: "open_scrm_demo"
-      MYSQL_PASSWORD: "A6UBxB4igUNxPRfx3CpYutH353VYo8Atpc"
-      MYSQL_DATABASE: "open_scrm_demo"
-      MYSQL_ROOT_PASSWORD: "A6UBxB4igUNxPRfx3CpYutH353VYo8Atpc"
+      POSTGRES_USER: "open_scrm"
+      POSTGRES_PASSWORD: "OpenSCRM2024!"
+      POSTGRES_DB: "open_scrm"
     ports:
-      - '3306:3306'
+      - '5432:5432'
     volumes:
-      - ./docker/mysql/data:/var/lib/mysql
+      - ./docker/postgres/data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "pg_isready -U open_scrm -d open_scrm"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -64,7 +63,7 @@ services:
 #      - |
 #        /srv/api-server
 #    depends_on:
-#      mysql:
+#      postgres:
 #        condition: service_healthy
 #      redis:
 #        condition: service_healthy
@@ -86,7 +85,7 @@ services:
 #      - |
 #        /srv/msg-arch-server
 #    depends_on:
-#      mysql:
+#      postgres:
 #        condition: service_healthy
 #      redis:
 #        condition: service_healthy

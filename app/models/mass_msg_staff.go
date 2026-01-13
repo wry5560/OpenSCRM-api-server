@@ -16,11 +16,11 @@ type MassMsgStaff struct {
 	// 接收消息群ID
 	ExtChatID string `json:"ext_chat_id"`
 	// 是否投递
-	IsSent uint8 `json:"is_sent" gorm:"type:tinyint unsigned;default:2"`
+	IsSent uint8 `json:"is_sent" gorm:"type:smallint;default:2"`
 	// 是否送达
-	IsDelivered uint8 `json:"is_delivered" gorm:"type:tinyint unsigned;default:2"`
+	IsDelivered uint8 `json:"is_delivered" gorm:"type:smallint;default:2"`
 	// 失败原因
-	FailedReason uint8 `json:"failed_reason" gorm:"type:tinyint unsigned"`
+	FailedReason uint8 `json:"failed_reason" gorm:"type:smallint"`
 	Timestamp
 }
 

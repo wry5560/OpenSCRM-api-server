@@ -16,9 +16,9 @@ type QuickReplyGroup struct {
 	// 上级分组id
 	ParentID *string `gorm:"type:bigint;comment:父级id" json:"parent_id"`
 	// 分组 可见部门ids
-	Departments constants.Int64ArrayField `gorm:"type:json;comment:可见部门ids" json:"departments"`
+	Departments constants.Int64ArrayField `gorm:"type:jsonb;comment:可见部门ids" json:"departments"`
 	// 是否为顶级分组
-	IsTopGroup constants.Boolean `gorm:"type:tinyint;comment:是否是顶级分组" json:"is_top_group"`
+	IsTopGroup constants.Boolean `gorm:"type:smallint;comment:是否是顶级分组" json:"is_top_group"`
 	// 下级分组
 	SubGroups []QuickReplyGroup `gorm:"foreignKey:ParentID;comment:二级分组" json:"sub_groups"`
 	// 话术条目

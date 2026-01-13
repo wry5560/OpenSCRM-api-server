@@ -18,9 +18,9 @@ type Department struct {
 	// 部门名称
 	Name string `gorm:"type:varchar(255);comment:部门名称" json:"name"`
 	// 上级部门id
-	ExtParentID int64 `gorm:"type:int unsigned;comment:上级部门ID,根部门为1" json:"ext_parent_id"`
+	ExtParentID int64 `gorm:"type:integer;comment:上级部门ID,根部门为1" json:"ext_parent_id"`
 	// 在上级部门中的排序
-	Order uint32 `gorm:"type:int unsigned;comment:在父部门中的次序值" json:"order"`
+	Order uint32 `gorm:"type:integer;comment:在父部门中的次序值" json:"order"`
 	// 欢迎语id
 	WelcomeMsgID *string `gorm:"type:bigint;comment:部门使用的欢迎语" json:"welcome_msg_id"`
 	// 直属下级部门, 不为空时前端可请求获取其子部门信息

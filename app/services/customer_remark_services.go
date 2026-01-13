@@ -1,7 +1,6 @@
 package services
 
 import (
-	"github.com/go-sql-driver/mysql"
 	"github.com/pkg/errors"
 	"openscrm/app/models"
 	"openscrm/app/requests"
@@ -59,8 +58,7 @@ func (cs CustomerRemarkService) Create(req *requests.AddCustomerRemarkReq, extCo
 	}
 	remark.Options = options
 	err = cs.remarkRepo.Create(remark)
-	mysqlErr := &mysql.MySQLError{}
-	if errors.As(err, &mysqlErr) && mysqlErr.Number == 1062 {
+	if ecode.IsDuplicateKeyError(err) {
 		err = ecode.DuplicateRemarkNameError
 		return
 	}
@@ -99,8 +97,7 @@ func (cs CustomerRemarkService) UpdateRemarkOption(req *requests.UpdateRemarkOpt
 	}
 	err := cs.optionRepo.Update(textOption)
 	if err != nil {
-		mysqlErr := &mysql.MySQLError{}
-		if errors.As(err, &mysqlErr) && mysqlErr.Number == 1062 {
+		if ecode.IsDuplicateKeyError(err) {
 			return ecode.DuplicateRemarkNameError
 		}
 		return err

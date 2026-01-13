@@ -25,16 +25,16 @@ type SendMassMsgReq struct {
 	// 1-立即发送，2-定时发送
 	SendType constants.SendMassMsgType `json:"send_type" validate:"required,oneof=1 2"`
 	// 定时发送时间戳
-	SendAt constants.DateTimeFiled `json:"send_at" validate:"omitempty,gt=0"`
+	SendAt constants.DateTimeFiled `json:"send_at" validate:"omitempty"`
 	// 群发任务的类型，默认为single，表示发送给客户，group表示发送给客户群
 	ChatType constants.ChatType `json:"chat_type" validate:"omitempty,oneof=single group"`
 	// 需要发送消息的员工部门集合
-	ExtDepartmentIDs constants.Int64ArrayField `json:"ext_department_ids" validate:"omitempty,gte=0"`
+	ExtDepartmentIDs constants.Int64ArrayField `json:"ext_department_ids" validate:"omitempty"`
 	// 是否有筛选条件
 	ExtCustomerFilterEnable constants.Boolean           `json:"ext_customer_filter_enable" form:"ext_customer_filter_enable"`
-	ExtCustomerFilter       constants.ExtCustomerFilter `json:"ext_customer_filter" validate:"required"`
+	ExtCustomerFilter       constants.ExtCustomerFilter `json:"ext_customer_filter" validate:"omitempty"`
 	// 消息体
-	Msg constants.AutoReplyField `json:"msg" validate:"omitempty,gte=0"`
+	Msg constants.AutoReplyField `json:"msg" validate:"omitempty"`
 }
 
 type UpdateMassMsgReq struct {
@@ -43,16 +43,16 @@ type UpdateMassMsgReq struct {
 	// 1-立即发送，2-定时发送
 	SendType constants.SendMassMsgType `json:"send_type" validate:"required,oneof=1 2"`
 	// 定时发送时间戳
-	SendAt constants.DateTimeFiled `json:"send_at" validate:"omitempty,gt=0"`
+	SendAt constants.DateTimeFiled `json:"send_at" validate:"omitempty"`
 	// 群发任务的类型，默认为single，表示发送给客户，group表示发送给客户群
 	//ChatType constants.ChatType `json:"chat_type" validate:"omitempty,oneof=single group"`
 	// 需要发送消息的员工部门集合
-	ExtDepartmentIDs constants.Int64ArrayField `json:"ext_department_ids" validate:"omitempty,gte=0"`
+	ExtDepartmentIDs constants.Int64ArrayField `json:"ext_department_ids" validate:"omitempty"`
 	// 是否有筛选条件
 	ExtCustomerFilterEnable constants.Boolean           `json:"ext_customer_filter_enable" form:"ext_customer_filter_enable"`
-	ExtCustomerFilter       constants.ExtCustomerFilter `json:"ext_customer_filter" validate:"required"`
+	ExtCustomerFilter       constants.ExtCustomerFilter `json:"ext_customer_filter" validate:"omitempty"`
 	// 消息体
-	Msg constants.AutoReplyField `json:"msg" validate:"omitempty,gte=0"`
+	Msg constants.AutoReplyField `json:"msg" validate:"omitempty"`
 }
 
 // QueryMassMsgReq 查询群发消息列表请求参数

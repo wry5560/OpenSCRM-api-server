@@ -2,6 +2,7 @@ package staff_event
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/pkg/errors"
 	"openscrm/app/constants"
 	"openscrm/app/models"
@@ -9,6 +10,7 @@ import (
 	"openscrm/common/delay_queue"
 	"openscrm/common/id_generator"
 	"openscrm/common/log"
+	"openscrm/conf"
 	gowx "openscrm/pkg/easywework"
 	"time"
 )
@@ -46,6 +48,22 @@ func EventAddExternalContactHandler(msg *gowx.RxMessage) error {
 		log.Sugar.Errorw("customerSrv.SyncSingleCustomerData failed",
 			"extStaffID", extStaffID, "extCustomerID", extCustomerID)
 		return err
+	}
+
+	// 记录添加客户事件
+	staff, _ := (&models.Staff{}).Get(extStaffID, conf.Settings.WeWork.ExtCorpID, false)
+	customer, _ := models.Customer{}.GetByExtID(extCustomerID, nil, false)
+	content := fmt.Sprintf("员工 [%s] 添加了客户 [%s]", staff.Name, customer.Name)
+	err = models.CustomerEvent{}.Create(models.CustomerEvent{
+		ExtCorpModel:  models.ExtCorpModel{ID: id_generator.StringID(), ExtCorpID: conf.Settings.WeWork.ExtCorpID, ExtCreatorID: extStaffID},
+		Content:       content,
+		EventType:     constants.CustomerEventCustomerAction,
+		EventName:     constants.EventNameAddExternalUser,
+		ExtCustomerID: extCustomerID,
+		ExtStaffID:    extStaffID,
+	})
+	if err != nil {
+		log.Sugar.Errorw("create add customer event failed", "err", err)
 	}
 
 	// 更新员工的客户数

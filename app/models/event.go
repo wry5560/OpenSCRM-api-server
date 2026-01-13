@@ -16,13 +16,13 @@ type EventNotify struct {
 	// EventName 事件名称
 	EventName constants.EventName `json:"event_name" gorm:"type:text;comment:时间名称"`
 	// 是否开启通知, 员工删除客户时提醒管理员
-	IsNotifyAdmins constants.EventNotifyStatus `gorm:"type:tinyint;comment:1-打开 2-关闭" json:"is_notify_admins"`
+	IsNotifyAdmins constants.EventNotifyStatus `gorm:"type:smallint;comment:1-打开 2-关闭" json:"is_notify_admins"`
 	// 是否通知员工，员工被客户删除时提醒
-	IsNotifyStaff constants.EventNotifyStatus `gorm:"type:tinyint;comment:1-打开 2-关闭" json:"is_notify_staff"`
+	IsNotifyStaff constants.EventNotifyStatus `gorm:"type:smallint;comment:1-打开 2-关闭" json:"is_notify_staff"`
 	// 发送通知的时间
 	NotifyType constants.EventNotifyTime `gorm:"comment:通知类型 1-实时 2-定时" json:"notify_type"`
 	// 接收通知的管理员
-	ExtStaffIDs constants.StringArrayField `gorm:"type:json;comment:接收通知的管理员" json:"ext_staff_ids"`
+	ExtStaffIDs constants.StringArrayField `gorm:"type:jsonb;comment:接收通知的管理员" json:"ext_staff_ids"`
 	Timestamp
 }
 

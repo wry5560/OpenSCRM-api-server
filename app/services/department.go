@@ -30,10 +30,33 @@ func (d Department) Sync(extCorpID string) error {
 	if err != nil {
 		return err
 	}
-	depts, err := wxClient.Contact.SimpleListAllDepartments()
+
+	// 使用应用 API 获取部门列表（包含部门名称）
+	depts, err := wxClient.MainApp.ListDepartments(0)
 	if err != nil {
-		log.Sugar.Error("get all departments from wx failed", err)
-		return err
+		log.Sugar.Warn("get departments with name failed, fallback to simple list", err)
+		// 降级到简单列表（不包含名称）
+		simpleDepts, simpleErr := wxClient.Contact.SimpleListAllDepartments()
+		if simpleErr != nil {
+			log.Sugar.Error("get all departments from wx failed", simpleErr)
+			return simpleErr
+		}
+		departments := make([]models.Department, 0)
+		for _, dept := range simpleDepts {
+			var department models.Department
+			department.ID = id_generator.StringID()
+			department.ExtCorpID = extCorpID
+			department.ExtID = dept.ID
+			department.ExtParentID = dept.ParentID
+			department.Order = dept.Order
+			departments = append(departments, department)
+		}
+		err = d.model.Upsert(departments...)
+		if err != nil {
+			log.Sugar.Error("create department failed", err)
+			return err
+		}
+		return nil
 	}
 
 	// 只维护企业微信的部门关系（企业内部）
@@ -44,6 +67,7 @@ func (d Department) Sync(extCorpID string) error {
 		department.ID = id_generator.StringID()
 		department.ExtCorpID = extCorpID
 		department.ExtID = dept.ID
+		department.Name = dept.Name
 		department.ExtParentID = dept.ParentID
 		department.Order = dept.Order
 		departments = append(departments, department)

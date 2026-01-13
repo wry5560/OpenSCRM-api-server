@@ -2,7 +2,7 @@ package models
 
 import (
 	"fmt"
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
@@ -10,6 +10,7 @@ import (
 	log "openscrm/common/log"
 	"openscrm/conf"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -22,7 +23,7 @@ type Timestamp struct {
 }
 
 type Model struct {
-	ID string `gorm:"primaryKey;type:bigint AUTO_INCREMENT;comment:'ID'" json:"id" validate:"int64"`
+	ID string `gorm:"primaryKey;type:bigint;comment:ID" json:"id" validate:"int64"`
 }
 
 type ExtCorpModel struct {
@@ -58,7 +59,7 @@ func AutoMigrate(db *gorm.DB) error {
 		return nil
 	}
 
-	db = db.Set("gorm:table_options", "ENGINE=InnoDB")
+	// PostgreSQL 不需要设置表引擎
 	err := db.AutoMigrate(
 		// 此处顺序不可改动，以免触发外键约束
 		&Customer{},
@@ -136,12 +137,25 @@ func initDB(c conf.DBConfig) (db *gorm.DB) {
 		gormLogLevel = logger.Info
 	}
 
+	// 解析 host:port 格式
+	host, port := extractHostPort(c.Host)
+	sslMode := c.SSLMode
+	if sslMode == "" {
+		sslMode = "require"
+	}
+
+	// PostgreSQL DSN 格式
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=Asia/Shanghai",
+		host,
+		c.User,
+		c.Password,
+		c.Name,
+		port,
+		sslMode,
+	)
+
 	db, err = gorm.Open(
-		mysql.Open(fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=True&loc=Asia%%2FShanghai",
-			c.User,
-			c.Password,
-			c.Host,
-			c.Name)),
+		postgres.Open(dsn),
 		&gorm.Config{
 			SkipDefaultTransaction:                   false,
 			DisableForeignKeyConstraintWhenMigrating: true,
@@ -162,4 +176,16 @@ func initDB(c conf.DBConfig) (db *gorm.DB) {
 	}
 
 	return db
+}
+
+// extractHostPort 从 host:port 格式中提取 host 和 port
+func extractHostPort(hostPort string) (host, port string) {
+	parts := strings.Split(hostPort, ":")
+	host = parts[0]
+	if len(parts) > 1 {
+		port = parts[1]
+	} else {
+		port = "5432" // PostgreSQL 默认端口
+	}
+	return
 }
