@@ -50,6 +50,11 @@ func EventAddExternalContactHandler(msg *gowx.RxMessage) error {
 		return err
 	}
 
+	// 处理明道云二维码的添加客户回调（优先处理，避免被后续错误阻塞）
+	// 如果是来自明道云的二维码，会异步更新明道云客户记录
+	mingdaoyunSrv := services.NewMingDaoYunService()
+	mingdaoyunSrv.HandleAddCustomerCallback(eventAddExternalContact, conf.Settings.WeWork.ExtCorpID)
+
 	// 记录添加客户事件
 	staff, _ := (&models.Staff{}).Get(extStaffID, conf.Settings.WeWork.ExtCorpID, false)
 	customer, _ := models.Customer{}.GetByExtID(extCustomerID, nil, false)

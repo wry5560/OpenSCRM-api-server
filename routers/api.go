@@ -75,6 +75,14 @@ func NewRouter() *gin.Engine {
 		apiV1.Any("/callback", callbackHandler.HandleCallback)
 	}
 
+	// 明道云公开API（无需登录验证，用于iframe嵌入）
+	mingdaoyunApiV1 := apiV1.Group("/mingdaoyun")
+	{
+		mingdaoyunHandler := controller.NewMingDaoYunHandler()
+		// 获取企微联系我二维码
+		mingdaoyunApiV1.GET("/qrcode", mingdaoyunHandler.GetQRCode)
+	}
+
 	//客户前台（H5）
 	customerPublicApiV1 := apiV1.Group("/customer-frontend")
 	{
@@ -143,6 +151,15 @@ func NewRouter() *gin.Engine {
 		// 素材标签
 		materialLibTagsFrontend := controller.NewMaterialLibTagFrontend()
 		staffApiV1.GET("/material/lib/tags", materialLibTagsFrontend.Query)
+
+		// 侧边栏-明道云客户信息
+		mingdaoCustomerHandler := controller.NewStaffFrontendMingDaoHandler()
+		staffApiV1.GET("/mingdao/customer/fields", mingdaoCustomerHandler.GetFieldConfigs)
+		staffApiV1.GET("/mingdao/customer/match", mingdaoCustomerHandler.MatchCustomer)
+		staffApiV1.GET("/mingdao/customer/search", mingdaoCustomerHandler.SearchCustomers)
+		staffApiV1.GET("/mingdao/customer/:row_id", mingdaoCustomerHandler.GetCustomer)
+		staffApiV1.PUT("/mingdao/customer/:row_id", mingdaoCustomerHandler.UpdateCustomer)
+		staffApiV1.POST("/mingdao/customer/:row_id/bind", mingdaoCustomerHandler.BindCustomer)
 	}
 
 	//企业普通管理员后台

@@ -166,6 +166,6 @@ func (c QuickReplyDetail) Upsert(details []QuickReplyDetail) error {
 	return DB.Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "id"}},
 		DoUpdates: clause.AssignmentColumns(
-			[]string{"name", "quick_reply_content", "content_type", "ext_staff_id"},
+			[]string{"quick_reply_content", "content_type", "scope", "send_count"},
 		)}).CreateInBatches(&details, 1000).Error
 }

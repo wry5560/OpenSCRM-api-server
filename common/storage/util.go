@@ -25,5 +25,10 @@ func GetContentType(filePath string) (contentType string, err error) {
 }
 
 func IsValidObjectKey(objectKey string) bool {
-	return regexp.MustCompile("^[a-zA-Z0-9/\\-_]+\\.[a-zA-Z0-9]+$").MatchString(objectKey)
+	// 禁止路径遍历和危险字符，但允许中文等 Unicode 字符
+	if strings.Contains(objectKey, "..") || strings.Contains(objectKey, "\\") {
+		return false
+	}
+	// 确保有文件扩展名
+	return regexp.MustCompile(`\.[a-zA-Z0-9]+$`).MatchString(objectKey)
 }

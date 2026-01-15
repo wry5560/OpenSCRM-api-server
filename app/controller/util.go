@@ -91,6 +91,12 @@ func (o *Util) GetUploadURL(c *gin.Context) {
 		return
 	}
 
+	// 检查存储服务是否已配置
+	if storage.FileStorage == nil {
+		handler.ResponseError(errors.New("存储服务未配置"))
+		return
+	}
+
 	obj := path.Join(adminInfo.ExtCorpID, "/", "public", "/", req.Filename)
 	uploadURL, err := storage.FileStorage.SignURL(obj, http.MethodPut, int64(3600))
 	if err != nil {

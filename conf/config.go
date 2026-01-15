@@ -19,6 +19,19 @@ type config struct {
 	DelayQueue delayQueueConfig
 	Storage    StorageConfig
 	WeWork     weWorkConfig
+	MingDaoYun MingDaoYunConfig
+}
+
+// MingDaoYunConfig 明道云配置
+type MingDaoYunConfig struct {
+	// APIBase 明道云 API 基础地址
+	APIBase string `json:"api_base"`
+	// AppKey 明道云应用 Key
+	AppKey string `json:"app_key"`
+	// Sign 明道云签名
+	Sign string `json:"sign"`
+	// CustomerWorksheetID 客户表工作表 ID
+	CustomerWorksheetID string `json:"customer_worksheet_id"`
 }
 
 // delayQueueConfig  基于redis延迟队列的配置
@@ -250,6 +263,12 @@ func SetupSettingFromEnv() error {
 			MsgArchTimeout:     getEnvInt("WEWORK_MSG_ARCH_TIMEOUT", 10),
 			MsgArchProxy:       getEnv("WEWORK_MSG_ARCH_PROXY", ""),
 			MsgArchProxyPasswd: getEnv("WEWORK_MSG_ARCH_PROXY_PASSWD", ""),
+		},
+		MingDaoYun: MingDaoYunConfig{
+			APIBase:             getEnv("MINGDAOYUN_API_BASE", "https://api.mingdao.com"),
+			AppKey:              getEnv("MINGDAOYUN_APP_KEY", ""),
+			Sign:                getEnv("MINGDAOYUN_SIGN", ""),
+			CustomerWorksheetID: getEnv("MINGDAOYUN_CUSTOMER_WORKSHEET_ID", ""),
 		},
 	}
 	return nil

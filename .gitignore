@@ -23,3 +23,8 @@ scripts/deploy-*.bat
 go.sum
 main
 bin/api-server
+api-server
+
+# 环境变量文件
+.env
+.env.*
