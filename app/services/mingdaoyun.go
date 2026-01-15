@@ -141,6 +141,24 @@ func (s *MingDaoYunService) updateMingDaoYunCustomer(userNO, extStaffID, extCust
 		}
 	}()
 
+	// 检查客户是否已绑定微信信息
+	isBound, boundExtUserID, err := s.CheckCustomerBound(userNO)
+	if err != nil {
+		log.Sugar.Errorw("检查客户绑定状态失败",
+			"err", err,
+			"userNO", userNO,
+		)
+		return
+	}
+	if isBound {
+		log.Sugar.Infow("客户已绑定微信信息，跳过更新",
+			"userNO", userNO,
+			"boundExtUserID", boundExtUserID,
+			"newExtCustomerID", extCustomerID,
+		)
+		return
+	}
+
 	// 获取企业微信客户端
 	client, err := we_work.Clients.Get(extCorpID)
 	if err != nil {
