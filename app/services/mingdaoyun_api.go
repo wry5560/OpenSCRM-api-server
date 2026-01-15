@@ -138,7 +138,7 @@ func (api *MingDaoYunAPI) UpdateRow(rowId string, fields map[string]string) erro
 	reqBody := UpdateRowRequest{
 		AppKey:      cfg.AppKey,
 		Sign:        cfg.Sign,
-		WorksheetID: cfg.CustomerWorksheetID,
+		WorksheetID: constants.MingDaoYunCustomerWorksheetAlias,
 		RowID:       rowId,
 		Controls:    controls,
 	}
@@ -266,7 +266,7 @@ func (api *MingDaoYunAPI) GetFilterRows(filters []FilterCondition, pageSize, pag
 	reqBody := GetFilterRowsRequest{
 		AppKey:      cfg.AppKey,
 		Sign:        cfg.Sign,
-		WorksheetID: cfg.CustomerWorksheetID,
+		WorksheetID: constants.MingDaoYunCustomerWorksheetAlias,
 		PageSize:    pageSize,
 		PageIndex:   pageIndex,
 		Filters:     filters,
@@ -350,7 +350,7 @@ func (api *MingDaoYunAPI) GetRowByID(rowId string) (*MingDaoCustomerInfo, error)
 	reqBody := GetRowByIDRequest{
 		AppKey:      cfg.AppKey,
 		Sign:        cfg.Sign,
-		WorksheetID: cfg.CustomerWorksheetID,
+		WorksheetID: constants.MingDaoYunCustomerWorksheetAlias,
 		RowID:       rowId,
 	}
 
@@ -463,7 +463,7 @@ func (api *MingDaoYunAPI) GetFilterRowsWithKeywords(keywords string, pageSize, p
 	reqBody := GetFilterRowsRequest{
 		AppKey:      cfg.AppKey,
 		Sign:        cfg.Sign,
-		WorksheetID: cfg.CustomerWorksheetID,
+		WorksheetID: constants.MingDaoYunCustomerWorksheetAlias,
 		PageSize:    pageSize,
 		PageIndex:   pageIndex,
 		Keywords:    keywords,
@@ -570,7 +570,7 @@ func (api *MingDaoYunAPI) UpdateCustomerFields(rowId string, updates []UpdateRow
 	reqBody := UpdateRowRequest{
 		AppKey:      cfg.AppKey,
 		Sign:        cfg.Sign,
-		WorksheetID: cfg.CustomerWorksheetID,
+		WorksheetID: constants.MingDaoYunCustomerWorksheetAlias,
 		RowID:       rowId,
 		Controls:    validUpdates,
 	}

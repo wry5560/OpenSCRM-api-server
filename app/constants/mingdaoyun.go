@@ -17,23 +17,23 @@ const (
 	MingDaoYunDepartmentWorksheetAlias = "stardeptinfo"
 )
 
-// MingDaoYunCustomerFields 明道云客户表字段映射
-// Key: 字段用途, Value: 明道云字段 ID
+// MingDaoYunCustomerFields 明道云客户表字段映射（企微信息绑定时写入）
+// Key: 字段用途, Value: 明道云字段别名（使用别名确保迁移一致性）
 var MingDaoYunCustomerFields = map[string]string{
 	// 企微员工ID
-	"wecomStaffID": "696610f93d7d0e60bca91d26",
+	"wecomStaffID": "wecomStaffID",
 	// 微信名
-	"wechatName": "6966103cc62174e0bab32b9c",
+	"wechatName": "wechatName",
 	// 微信性别 (1=男, 2=女, 0=未知)
-	"wechatGender": "6966103cc62174e0bab32b9d",
+	"wechatGender": "wechatGender",
 	// 企微外部联系人ID
-	"wecomExternalUserid": "6966103cc62174e0bab32b9e",
+	"wecomExternalUserid": "wecomExternalUserid",
 	// 微信头像URL
-	"wechatAvatar": "6966103cc62174e0bab32b9f",
+	"wechatAvatar": "wechatAvatar",
 	// 微信UnionID
-	"wechatUnionId": "6966103cc62174e0bab32ba0",
+	"wechatUnionId": "wechatUnionId",
 	// 企微对外信息(JSON)
-	"wecomExternalProfile": "6966103cc62174e0bab32ba1",
+	"wecomExternalProfile": "wecomExternalProfile",
 }
 
 // MingDaoYunCustomerStaticFields 明道云客户表静态字段配置
