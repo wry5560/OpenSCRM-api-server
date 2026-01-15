@@ -9,8 +9,8 @@ const MingDaoYunStatePrefix = "mdy:"
 // 别名在明道云应用内唯一，API 调用时可直接使用别名替代 worksheetId
 
 const (
-	// MingDaoYunCustomerWorksheetAlias 客户表别名
-	MingDaoYunCustomerWorksheetAlias = "bjxcustomerinfo"
+	// MingDaoYunCustomerWorksheetAlias 客户表别名（注：cilent 非 client，保持与明道云一致）
+	MingDaoYunCustomerWorksheetAlias = "starcilentinfo"
 	// MingDaoYunStaffWorksheetAlias 员工表别名
 	MingDaoYunStaffWorksheetAlias = "starstaffinfo"
 	// MingDaoYunDepartmentWorksheetAlias 部门表别名
