@@ -80,16 +80,16 @@ type GetFilterRowsResponse struct {
 	Total int                      `json:"total"`
 }
 
-// CustomerInfo 客户信息结构（用于返回给前端）
-type CustomerInfo struct {
+// MingDaoCustomerInfo 明道云客户信息结构（用于返回给前端）
+type MingDaoCustomerInfo struct {
 	RowID  string                 `json:"row_id"`
 	Fields map[string]interface{} `json:"fields"`
 }
 
-// CustomerSearchResult 客户搜索结果
-type CustomerSearchResult struct {
-	Items []CustomerInfo `json:"items"`
-	Total int            `json:"total"`
+// MingDaoCustomerSearchResult 明道云客户搜索结果
+type MingDaoCustomerSearchResult struct {
+	Items []MingDaoCustomerInfo `json:"items"`
+	Total int                   `json:"total"`
 }
 
 // UpdateRowRequest 更新行记录请求
@@ -241,7 +241,7 @@ func (api *MingDaoYunAPI) UpdateCustomerWeComInfo(rowId string, info CustomerWeC
 }
 
 // GetFilterRows 查询记录列表
-func (api *MingDaoYunAPI) GetFilterRows(filters []FilterCondition, pageSize, pageIndex int) (*CustomerSearchResult, error) {
+func (api *MingDaoYunAPI) GetFilterRows(filters []FilterCondition, pageSize, pageIndex int) (*MingDaoCustomerSearchResult, error) {
 	cfg := conf.Settings.MingDaoYun
 	if cfg.APIBase == "" || cfg.AppKey == "" || cfg.Sign == "" {
 		return nil, errors.New("明道云配置不完整")
@@ -307,15 +307,15 @@ func (api *MingDaoYunAPI) GetFilterRows(filters []FilterCondition, pageSize, pag
 		return nil, fmt.Errorf("明道云 API 错误: %s (code: %d)", mdyResp.ErrorMsg, mdyResp.ErrorCode)
 	}
 
-	// 转换为 CustomerInfo 列表
-	result := &CustomerSearchResult{
+	// 转换为 MingDaoCustomerInfo 列表
+	result := &MingDaoCustomerSearchResult{
 		Total: mdyResp.Data.Total,
-		Items: make([]CustomerInfo, 0, len(mdyResp.Data.Rows)),
+		Items: make([]MingDaoCustomerInfo, 0, len(mdyResp.Data.Rows)),
 	}
 
 	for _, row := range mdyResp.Data.Rows {
 		rowID, _ := row["rowid"].(string)
-		result.Items = append(result.Items, CustomerInfo{
+		result.Items = append(result.Items, MingDaoCustomerInfo{
 			RowID:  rowID,
 			Fields: row,
 		})
@@ -325,7 +325,7 @@ func (api *MingDaoYunAPI) GetFilterRows(filters []FilterCondition, pageSize, pag
 }
 
 // GetRowByID 根据记录ID获取详情
-func (api *MingDaoYunAPI) GetRowByID(rowId string) (*CustomerInfo, error) {
+func (api *MingDaoYunAPI) GetRowByID(rowId string) (*MingDaoCustomerInfo, error) {
 	cfg := conf.Settings.MingDaoYun
 	if cfg.APIBase == "" || cfg.AppKey == "" || cfg.Sign == "" {
 		return nil, errors.New("明道云配置不完整")
@@ -387,14 +387,14 @@ func (api *MingDaoYunAPI) GetRowByID(rowId string) (*CustomerInfo, error) {
 		return nil, fmt.Errorf("明道云 API 错误: %s (code: %d)", mdyResp.ErrorMsg, mdyResp.ErrorCode)
 	}
 
-	return &CustomerInfo{
+	return &MingDaoCustomerInfo{
 		RowID:  rowId,
 		Fields: mdyResp.Data,
 	}, nil
 }
 
 // GetCustomerByExternalUserID 根据企微外部联系人ID获取客户
-func (api *MingDaoYunAPI) GetCustomerByExternalUserID(externalUserID string) (*CustomerInfo, error) {
+func (api *MingDaoYunAPI) GetCustomerByExternalUserID(externalUserID string) (*MingDaoCustomerInfo, error) {
 	if externalUserID == "" {
 		return nil, errors.New("externalUserID 不能为空")
 	}
@@ -423,7 +423,7 @@ func (api *MingDaoYunAPI) GetCustomerByExternalUserID(externalUserID string) (*C
 }
 
 // SearchCustomers 搜索客户（支持手机号、客户编号关键字搜索）
-func (api *MingDaoYunAPI) SearchCustomers(keyword string, pageSize, pageIndex int) (*CustomerSearchResult, error) {
+func (api *MingDaoYunAPI) SearchCustomers(keyword string, pageSize, pageIndex int) (*MingDaoCustomerSearchResult, error) {
 	if keyword == "" {
 		return nil, errors.New("搜索关键字不能为空")
 	}

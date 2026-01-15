@@ -66,7 +66,7 @@ func (h *StaffFrontendMingDaoHandler) GetFieldConfigs(c *gin.Context) {
 // MatchCustomerResponse 客户匹配响应
 type MatchCustomerResponse struct {
 	Found    bool                    `json:"found"`
-	Customer *services.CustomerInfo `json:"customer,omitempty"`
+	Customer *services.MingDaoCustomerInfo `json:"customer,omitempty"`
 }
 
 // MatchCustomer 根据企微外部联系人ID匹配客户
@@ -116,7 +116,7 @@ type SearchCustomerRequest struct {
 
 // SearchCustomersResponse 搜索客户响应
 type SearchCustomersResponse struct {
-	Items []services.CustomerInfo `json:"items"`
+	Items []services.MingDaoCustomerInfo `json:"items"`
 	Total int                     `json:"total"`
 }
 
@@ -166,7 +166,7 @@ func (h *StaffFrontendMingDaoHandler) SearchCustomers(c *gin.Context) {
 
 // GetCustomerResponse 获取客户详情响应
 type GetCustomerResponse struct {
-	Customer *services.CustomerInfo `json:"customer"`
+	Customer *services.MingDaoCustomerInfo `json:"customer"`
 }
 
 // GetCustomer 获取客户详情
@@ -285,7 +285,7 @@ func (h *StaffFrontendMingDaoHandler) BindCustomer(c *gin.Context) {
 }
 
 // filterHiddenFields 过滤隐藏字段
-func filterHiddenFields(customer *services.CustomerInfo) {
+func filterHiddenFields(customer *services.MingDaoCustomerInfo) {
 	if customer == nil || customer.Fields == nil {
 		return
 	}
