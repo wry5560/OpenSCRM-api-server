@@ -558,7 +558,7 @@ func (api *MingDaoYunAPI) GetViewFields(worksheetId, viewId string) ([]ViewField
 		fieldMap[wsInfo.Fields[i].ID] = &wsInfo.Fields[i]
 		allFieldIDs = append(allFieldIDs, wsInfo.Fields[i].ID)
 	}
-	log.Sugar.Debugw("工作表字段ID列表",
+	log.Sugar.Infow("工作表字段ID列表",
 		"count", len(allFieldIDs),
 		"ids", allFieldIDs,
 	)
