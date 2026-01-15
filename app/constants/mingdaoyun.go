@@ -23,6 +23,22 @@ const (
 	MingDaoYunCustomerSidebarViewAlias = "starMobileSideBar"
 )
 
+// MingDaoYunCustomerSidebarViewFields 侧边栏视图字段ID列表（按显示顺序）
+// 由于明道云 API 不返回视图配置的字段列表，需硬编码字段ID
+// 当明道云后台调整视图字段时，需同步更新此列表
+var MingDaoYunCustomerSidebarViewFields = []string{
+	"693660e95326c71216b1b87a", // 客户编号 (userNO) - AutoNumber
+	"692f976f7001b729cd1c01c3", // 设计师 - Collaborator
+	"694b6d090d5691f00accd140", // 客户画像 - Divider（分隔线）
+	"694b6d090d5691f00accd141", // 客户意向 (userYX) - Dropdown
+	"694b70a80d5691f00acce09f", // 客户进度 - Dropdown
+	"692f976f7001b729cd1c01c2", // 需求 - MultipleSelect
+	"694bc08a0d5691f00ace2e61", // 装修进度 - Dropdown
+	"694bc08a0d5691f00ace2e62", // 户型 - Dropdown
+	"695a258487071723ff4e1dd1", // 总收款 - Rollup
+	"695a258487071723ff4e1dd2", // 总退款 - Rollup
+}
+
 // MingDaoYunCustomerFields 明道云客户表字段映射（企微信息绑定时写入）
 // Key: 字段用途, Value: 明道云字段别名（使用别名确保迁移一致性）
 var MingDaoYunCustomerFields = map[string]string{

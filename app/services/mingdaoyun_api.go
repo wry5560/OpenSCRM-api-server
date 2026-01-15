@@ -268,6 +268,7 @@ type FieldOption struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
 	Index int    `json:"index,omitempty"`
+	Color string `json:"color,omitempty"` // 选项颜色（如 #C0E6FC）
 }
 
 // WorksheetInfoResponse 工作表结构响应
@@ -384,6 +385,16 @@ func (api *MingDaoYunAPI) GetWorksheetInfo(worksheetId string) (*WorksheetInfoRe
 		return nil, errors.Wrap(err, "解析响应失败")
 	}
 
+	// 调试日志：打印视图信息
+	for _, v := range mdyResp.Data.Views {
+		log.Sugar.Debugw("V2 API 视图详情",
+			"viewId", v.ViewID,
+			"viewName", v.Name,
+			"controlsCount", len(v.Controls),
+			"controls", v.Controls,
+		)
+	}
+
 	if !mdyResp.Success {
 		log.Sugar.Errorw("明道云 API 返回错误",
 			"errorCode", mdyResp.ErrorCode,
@@ -425,6 +436,7 @@ func (api *MingDaoYunAPI) GetWorksheetInfo(worksheetId string) (*WorksheetInfoRe
 				Key:   opt.Key,
 				Value: opt.Value,
 				Index: opt.Index,
+				Color: opt.Color,
 			})
 		}
 		result.Fields = append(result.Fields, field)
@@ -509,20 +521,34 @@ func (api *MingDaoYunAPI) GetViewFields(worksheetId, viewId string) ([]ViewField
 
 	// 构建视图字段 ID 集合（如果找到了视图）
 	viewFieldSet := make(map[string]int) // 字段ID -> 在视图中的顺序
+
+	// 获取视图字段列表
+	var viewFieldIDs []string
 	if targetView != nil && len(targetView.Controls) > 0 {
-		for i, controlID := range targetView.Controls {
-			viewFieldSet[controlID] = i
-		}
-		log.Sugar.Infow("找到目标视图",
+		// 使用 API 返回的视图字段列表
+		viewFieldIDs = targetView.Controls
+		log.Sugar.Infow("使用API返回的视图字段列表",
 			"viewId", viewId,
 			"viewName", targetView.Name,
-			"controlsCount", len(targetView.Controls),
+			"controlsCount", len(viewFieldIDs),
+		)
+	} else if viewId == constants.MingDaoYunCustomerSidebarViewID {
+		// 对于侧边栏视图，使用硬编码的字段列表
+		viewFieldIDs = constants.MingDaoYunCustomerSidebarViewFields
+		log.Sugar.Infow("使用硬编码的侧边栏视图字段列表",
+			"viewId", viewId,
+			"fieldsCount", len(viewFieldIDs),
 		)
 	} else {
 		log.Sugar.Warnw("未找到目标视图或视图无字段配置，将返回所有非隐藏字段",
 			"viewId", viewId,
 			"viewsCount", len(wsInfo.Views),
 		)
+	}
+
+	// 构建字段顺序映射
+	for i, controlID := range viewFieldIDs {
+		viewFieldSet[controlID] = i
 	}
 
 	// 构建字段 ID 到字段信息的映射
@@ -534,12 +560,15 @@ func (api *MingDaoYunAPI) GetViewFields(worksheetId, viewId string) ([]ViewField
 	var fields []ViewField
 
 	// 如果有视图字段配置，按视图字段顺序返回
-	if len(viewFieldSet) > 0 {
+	if len(viewFieldIDs) > 0 {
 		// 按视图中的字段顺序排列
-		orderedFields := make([]ViewField, len(targetView.Controls))
-		for _, controlID := range targetView.Controls {
+		orderedFields := make([]ViewField, len(viewFieldIDs))
+		for _, controlID := range viewFieldIDs {
 			f, exists := fieldMap[controlID]
 			if !exists {
+				log.Sugar.Warnw("视图字段在工作表中不存在",
+					"controlID", controlID,
+				)
 				continue
 			}
 			idx := viewFieldSet[controlID]
@@ -592,6 +621,7 @@ func buildViewField(f *FieldInfo) ViewField {
 			Key:   opt.Key,
 			Value: opt.Value,
 			Index: opt.Index,
+			Color: opt.Color,
 		})
 	}
 
