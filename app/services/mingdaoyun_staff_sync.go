@@ -7,6 +7,7 @@ import (
 	"openscrm/common/log"
 	"openscrm/conf"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -561,9 +562,30 @@ func buildRelationValue(rowIds []string) string {
 }
 
 // buildAttachmentValue 构建附件字段值的JSON字符串
+// V3 API 需要同时包含 name 和 url 字段
 func buildAttachmentValue(url string) string {
+	// 从URL中提取文件名，如果无法提取则使用默认名称
+	fileName := "avatar.jpg"
+	if url != "" {
+		// 尝试从URL中提取文件名
+		parts := strings.Split(url, "/")
+		if len(parts) > 0 {
+			lastPart := parts[len(parts)-1]
+			// 移除查询参数
+			if idx := strings.Index(lastPart, "?"); idx > 0 {
+				lastPart = lastPart[:idx]
+			}
+			if lastPart != "" && strings.Contains(lastPart, ".") {
+				fileName = lastPart
+			}
+		}
+	}
+
 	attachments := []map[string]string{
-		{"url": url},
+		{
+			"name": fileName,
+			"url":  url,
+		},
 	}
 	value, _ := json.Marshal(attachments)
 	return string(value)
