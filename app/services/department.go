@@ -79,6 +79,10 @@ func (d Department) Sync(extCorpID string) error {
 		return err
 	}
 
+	// 异步同步所有部门到明道云
+	syncService := NewMingDaoYunStaffSyncService()
+	syncService.AsyncSyncAllDepartments(extCorpID)
+
 	return nil
 }
 

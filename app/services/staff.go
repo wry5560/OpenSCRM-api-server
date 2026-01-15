@@ -171,6 +171,11 @@ func (o StaffService) SyncStaffByCorp(extCorpID string) (err error) {
 		err = errors.WithStack(err)
 		return
 	}
+
+	// 异步同步所有员工到明道云
+	syncService := NewMingDaoYunStaffSyncService()
+	syncService.AsyncSyncAllStaff(extCorpID)
+
 	return nil
 }
 

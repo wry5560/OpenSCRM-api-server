@@ -3,6 +3,7 @@ package department_event
 import (
 	"github.com/pkg/errors"
 	"openscrm/app/models"
+	"openscrm/app/services"
 	gowx "openscrm/pkg/easywework"
 )
 
@@ -19,6 +20,13 @@ func EventDeleteDepartment(msg *gowx.RxMessage) error {
 	if !ok {
 		return errors.New("msg.EventEditExternalContact failed")
 	}
+
+	// 构建部门对象用于明道云同步
+	department := models.Department{
+		ExtCorpID: msg.ToUserID,
+		ExtID:     eventDeleteParty.GetID(),
+	}
+
 	err := models.DB.
 		Where("ext_corp_id = ?", msg.ToUserID).
 		Where("ext_id = ?", eventDeleteParty.GetID()).
@@ -28,6 +36,9 @@ func EventDeleteDepartment(msg *gowx.RxMessage) error {
 		return err
 	}
 
-	//models.DB.Model(&models.TagGroup{}).Where("")
+	// 异步同步到明道云（删除部门记录）
+	syncService := services.NewMingDaoYunStaffSyncService()
+	syncService.AsyncSyncDepartment(&department, "delete")
+
 	return nil
 }

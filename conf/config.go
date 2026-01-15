@@ -32,6 +32,12 @@ type MingDaoYunConfig struct {
 	Sign string `json:"sign"`
 	// CustomerWorksheetID 客户表工作表 ID
 	CustomerWorksheetID string `json:"customer_worksheet_id"`
+	// StaffWorksheetID 员工表工作表 ID
+	StaffWorksheetID string `json:"staff_worksheet_id"`
+	// DepartmentWorksheetID 部门表工作表 ID
+	DepartmentWorksheetID string `json:"department_worksheet_id"`
+	// EnableStaffSync 是否启用员工同步到明道云
+	EnableStaffSync bool `json:"enable_staff_sync"`
 }
 
 // delayQueueConfig  基于redis延迟队列的配置
@@ -265,10 +271,13 @@ func SetupSettingFromEnv() error {
 			MsgArchProxyPasswd: getEnv("WEWORK_MSG_ARCH_PROXY_PASSWD", ""),
 		},
 		MingDaoYun: MingDaoYunConfig{
-			APIBase:             getEnv("MINGDAOYUN_API_BASE", "https://api.mingdao.com"),
-			AppKey:              getEnv("MINGDAOYUN_APP_KEY", ""),
-			Sign:                getEnv("MINGDAOYUN_SIGN", ""),
-			CustomerWorksheetID: getEnv("MINGDAOYUN_CUSTOMER_WORKSHEET_ID", ""),
+			APIBase:               getEnv("MINGDAOYUN_API_BASE", "https://api.mingdao.com"),
+			AppKey:                getEnv("MINGDAOYUN_APP_KEY", ""),
+			Sign:                  getEnv("MINGDAOYUN_SIGN", ""),
+			CustomerWorksheetID:   getEnv("MINGDAOYUN_CUSTOMER_WORKSHEET_ID", ""),
+			StaffWorksheetID:      getEnv("MINGDAOYUN_STAFF_WORKSHEET_ID", ""),
+			DepartmentWorksheetID: getEnv("MINGDAOYUN_DEPARTMENT_WORKSHEET_ID", ""),
+			EnableStaffSync:       getEnvBool("MINGDAOYUN_ENABLE_STAFF_SYNC", false),
 		},
 	}
 	return nil

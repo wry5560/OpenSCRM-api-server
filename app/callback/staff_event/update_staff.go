@@ -4,6 +4,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/thoas/go-funk"
 	"openscrm/app/models"
+	"openscrm/app/services"
 	"openscrm/common/log"
 	"openscrm/conf"
 	gowx "openscrm/pkg/easywework"
@@ -74,6 +75,10 @@ func EventUpdateStaffHandler(msg *gowx.RxMessage) error {
 			return err
 		}
 	}
+
+	// 异步同步员工到明道云
+	syncService := services.NewMingDaoYunStaffSyncService()
+	syncService.AsyncSyncStaff(&newStaff, "update")
 
 	return nil
 }

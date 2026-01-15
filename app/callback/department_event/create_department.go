@@ -3,6 +3,7 @@ package department_event
 import (
 	"github.com/pkg/errors"
 	"openscrm/app/models"
+	"openscrm/app/services"
 	"openscrm/common/id_generator"
 	log2 "openscrm/common/log"
 	gowx "openscrm/pkg/easywework"
@@ -30,5 +31,14 @@ func EventCreateDepartment(msg *gowx.RxMessage) error {
 		ExtParentID: eventCreateParty.GetParentID(),
 		Order:       uint32(eventCreateParty.GetOrder()),
 	}
-	return models.DB.Create(&department).Error
+	err := models.DB.Create(&department).Error
+	if err != nil {
+		return err
+	}
+
+	// 异步同步到明道云
+	syncService := services.NewMingDaoYunStaffSyncService()
+	syncService.AsyncSyncDepartment(&department, "create")
+
+	return nil
 }

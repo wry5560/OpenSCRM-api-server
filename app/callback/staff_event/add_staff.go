@@ -5,6 +5,7 @@ import (
 	"github.com/pkg/errors"
 	"openscrm/app/constants"
 	"openscrm/app/models"
+	"openscrm/app/services"
 	"openscrm/common/id_generator"
 	"openscrm/common/log"
 	"openscrm/common/we_work"
@@ -109,5 +110,10 @@ func SyncStaff(extCorpID string, ExtStaffID string) error {
 	if err != nil {
 		return err
 	}
+
+	// 异步同步员工到明道云
+	syncService := services.NewMingDaoYunStaffSyncService()
+	syncService.AsyncSyncStaff(&newStaff, "create")
+
 	return nil
 }

@@ -59,3 +59,13 @@ DelayQueue:
   BucketName: dq_bucket_%d
   QueueName: dq_queue_%s
   QueueBlockTimeout: 2
+
+# 明道云配置
+MingDaoYun:
+  APIBase: https://zhinengzhenxuan.mingdao.net
+  AppKey: 6E1F5F57FF99D05B
+  Sign: NzJiZWY3YTY1MjcwOTc5YTdhMjJiY2EyNDZmMDkxYjlkYWMwMTlhMzg5ZWJjOWMwY2JlMGFhMjI2MzRjNDhmZg==
+  CustomerWorksheetID: 692f96ad7001b729cd1bf53b
+  StaffWorksheetID: 69660cd16951c9bd8f2da03f
+  DepartmentWorksheetID: 69660d1cf636abca5cc49905
+  EnableStaffSync: true

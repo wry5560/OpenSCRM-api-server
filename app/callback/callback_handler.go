@@ -39,11 +39,23 @@ func init() {
 			EventType:   workwx.EventTypeChangeExternalContact,
 			ChangeType:  workwx.ChangeTypeEditExternalContact}: staff_event.EventEditExternalContactHandler,
 
+		// 新建员工事件
+		services.Event{
+			MessageType: workwx.MessageTypeEvent,
+			EventType:   workwx.EventTypeChangeContact,
+			ChangeType:  workwx.ChangeTypeCreateUser}: staff_event.EventAddStaffHandler,
+
 		// 更新员工事件
 		services.Event{
 			MessageType: workwx.MessageTypeEvent,
 			EventType:   workwx.EventTypeChangeContact,
 			ChangeType:  workwx.ChangeTypeUpdateUser}: staff_event.EventUpdateStaffHandler,
+
+		// 删除员工事件
+		services.Event{
+			MessageType: workwx.MessageTypeEvent,
+			EventType:   workwx.EventTypeChangeContact,
+			ChangeType:  workwx.ChangeTypeDelUser}: staff_event.EventDelStaffHandler,
 
 		// 客户删除员工
 		services.Event{

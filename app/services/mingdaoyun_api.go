@@ -552,3 +552,312 @@ func (api *MingDaoYunAPI) BindCustomer(rowId, externalUserID, staffID string) er
 
 	return api.UpdateCustomerWeComInfo(rowId, info)
 }
+
+// ========== 通用 CRUD 方法 ==========
+
+// CreateRowRequest 创建行记录请求
+type CreateRowRequest struct {
+	AppKey        string             `json:"appKey"`
+	Sign          string             `json:"sign"`
+	WorksheetID   string             `json:"worksheetId"`
+	Controls      []UpdateRowControl `json:"controls"`
+	TriggerWorkflow bool             `json:"triggerWorkflow"`
+}
+
+// CreateRowResponse 创建行记录响应
+type CreateRowResponse struct {
+	Success   bool   `json:"success"`
+	ErrorCode int    `json:"error_code"`
+	ErrorMsg  string `json:"error_msg"`
+	Data      string `json:"data"` // 新记录的 rowId
+}
+
+// CreateRow 创建记录（通用方法，支持指定工作表）
+func (api *MingDaoYunAPI) CreateRow(worksheetId string, controls []UpdateRowControl) (string, error) {
+	cfg := conf.Settings.MingDaoYun
+	if cfg.APIBase == "" || cfg.AppKey == "" || cfg.Sign == "" {
+		return "", errors.New("明道云配置不完整")
+	}
+
+	if len(controls) == 0 {
+		return "", errors.New("没有有效的字段需要创建")
+	}
+
+	reqBody := CreateRowRequest{
+		AppKey:          cfg.AppKey,
+		Sign:            cfg.Sign,
+		WorksheetID:     worksheetId,
+		Controls:        controls,
+		TriggerWorkflow: true,
+	}
+
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return "", errors.Wrap(err, "序列化请求体失败")
+	}
+
+	url := fmt.Sprintf("%s/v2/open/worksheet/addRow", cfg.APIBase)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return "", errors.Wrap(err, "创建请求失败")
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	log.Sugar.Infow("调用明道云 API 创建记录",
+		"url", url,
+		"worksheetId", worksheetId,
+		"fieldsCount", len(controls),
+	)
+
+	resp, err := api.httpClient.Do(req)
+	if err != nil {
+		return "", errors.Wrap(err, "发送请求失败")
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", errors.Wrap(err, "读取响应失败")
+	}
+
+	var mdyResp CreateRowResponse
+	if err := json.Unmarshal(body, &mdyResp); err != nil {
+		log.Sugar.Errorw("解析明道云响应失败", "body", string(body), "err", err)
+		return "", errors.Wrap(err, "解析响应失败")
+	}
+
+	if !mdyResp.Success {
+		log.Sugar.Errorw("明道云 API 返回错误",
+			"errorCode", mdyResp.ErrorCode,
+			"errorMsg", mdyResp.ErrorMsg,
+			"worksheetId", worksheetId,
+		)
+		return "", fmt.Errorf("明道云 API 错误: %s (code: %d)", mdyResp.ErrorMsg, mdyResp.ErrorCode)
+	}
+
+	log.Sugar.Infow("明道云记录创建成功", "worksheetId", worksheetId, "rowId", mdyResp.Data)
+	return mdyResp.Data, nil
+}
+
+// EditRowByWorksheet 更新记录（通用方法，支持指定工作表）
+func (api *MingDaoYunAPI) EditRowByWorksheet(worksheetId, rowId string, controls []UpdateRowControl) error {
+	cfg := conf.Settings.MingDaoYun
+	if cfg.APIBase == "" || cfg.AppKey == "" || cfg.Sign == "" {
+		return errors.New("明道云配置不完整")
+	}
+
+	if len(controls) == 0 {
+		return errors.New("没有有效的字段需要更新")
+	}
+
+	reqBody := UpdateRowRequest{
+		AppKey:      cfg.AppKey,
+		Sign:        cfg.Sign,
+		WorksheetID: worksheetId,
+		RowID:       rowId,
+		Controls:    controls,
+	}
+
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return errors.Wrap(err, "序列化请求体失败")
+	}
+
+	url := fmt.Sprintf("%s/v2/open/worksheet/editRow", cfg.APIBase)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return errors.Wrap(err, "创建请求失败")
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	log.Sugar.Infow("调用明道云 API 更新记录",
+		"url", url,
+		"worksheetId", worksheetId,
+		"rowId", rowId,
+		"fieldsCount", len(controls),
+	)
+
+	resp, err := api.httpClient.Do(req)
+	if err != nil {
+		return errors.Wrap(err, "发送请求失败")
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return errors.Wrap(err, "读取响应失败")
+	}
+
+	var mdyResp MingDaoYunResponse
+	if err := json.Unmarshal(body, &mdyResp); err != nil {
+		log.Sugar.Errorw("解析明道云响应失败", "body", string(body), "err", err)
+		return errors.Wrap(err, "解析响应失败")
+	}
+
+	if !mdyResp.Success {
+		log.Sugar.Errorw("明道云 API 返回错误",
+			"errorCode", mdyResp.ErrorCode,
+			"errorMsg", mdyResp.ErrorMsg,
+			"rowId", rowId,
+		)
+		return fmt.Errorf("明道云 API 错误: %s (code: %d)", mdyResp.ErrorMsg, mdyResp.ErrorCode)
+	}
+
+	log.Sugar.Infow("明道云记录更新成功", "worksheetId", worksheetId, "rowId", rowId)
+	return nil
+}
+
+// GetFilterRowsByWorksheet 查询记录列表（通用方法，支持指定工作表）
+func (api *MingDaoYunAPI) GetFilterRowsByWorksheet(worksheetId string, filters []FilterCondition, pageSize, pageIndex int) (*MingDaoCustomerSearchResult, error) {
+	cfg := conf.Settings.MingDaoYun
+	if cfg.APIBase == "" || cfg.AppKey == "" || cfg.Sign == "" {
+		return nil, errors.New("明道云配置不完整")
+	}
+
+	reqBody := GetFilterRowsRequest{
+		AppKey:      cfg.AppKey,
+		Sign:        cfg.Sign,
+		WorksheetID: worksheetId,
+		PageSize:    pageSize,
+		PageIndex:   pageIndex,
+		Filters:     filters,
+	}
+
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, errors.Wrap(err, "序列化请求体失败")
+	}
+
+	url := fmt.Sprintf("%s/v2/open/worksheet/getFilterRows", cfg.APIBase)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return nil, errors.Wrap(err, "创建请求失败")
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	log.Sugar.Debugw("调用明道云 API 查询记录",
+		"url", url,
+		"worksheetId", worksheetId,
+		"filtersCount", len(filters),
+	)
+
+	resp, err := api.httpClient.Do(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "发送请求失败")
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "读取响应失败")
+	}
+
+	var mdyResp struct {
+		Success   bool   `json:"success"`
+		ErrorCode int    `json:"error_code"`
+		ErrorMsg  string `json:"error_msg"`
+		Data      struct {
+			Rows  []map[string]interface{} `json:"rows"`
+			Total int                      `json:"total"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &mdyResp); err != nil {
+		log.Sugar.Errorw("解析明道云响应失败", "body", string(body), "err", err)
+		return nil, errors.Wrap(err, "解析响应失败")
+	}
+
+	if !mdyResp.Success {
+		log.Sugar.Errorw("明道云 API 返回错误",
+			"errorCode", mdyResp.ErrorCode,
+			"errorMsg", mdyResp.ErrorMsg,
+		)
+		return nil, fmt.Errorf("明道云 API 错误: %s (code: %d)", mdyResp.ErrorMsg, mdyResp.ErrorCode)
+	}
+
+	result := &MingDaoCustomerSearchResult{
+		Total: mdyResp.Data.Total,
+		Items: make([]MingDaoCustomerInfo, 0, len(mdyResp.Data.Rows)),
+	}
+
+	for _, row := range mdyResp.Data.Rows {
+		rowID, _ := row["rowid"].(string)
+		result.Items = append(result.Items, MingDaoCustomerInfo{
+			RowID:  rowID,
+			Fields: row,
+		})
+	}
+
+	return result, nil
+}
+
+// DeleteRowRequest 删除行记录请求
+type DeleteRowRequest struct {
+	AppKey        string `json:"appKey"`
+	Sign          string `json:"sign"`
+	WorksheetID   string `json:"worksheetId"`
+	RowID         string `json:"rowId"`
+	TriggerWorkflow bool `json:"triggerWorkflow"`
+}
+
+// DeleteRow 删除记录
+func (api *MingDaoYunAPI) DeleteRow(worksheetId, rowId string) error {
+	cfg := conf.Settings.MingDaoYun
+	if cfg.APIBase == "" || cfg.AppKey == "" || cfg.Sign == "" {
+		return errors.New("明道云配置不完整")
+	}
+
+	reqBody := DeleteRowRequest{
+		AppKey:          cfg.AppKey,
+		Sign:            cfg.Sign,
+		WorksheetID:     worksheetId,
+		RowID:           rowId,
+		TriggerWorkflow: true,
+	}
+
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return errors.Wrap(err, "序列化请求体失败")
+	}
+
+	url := fmt.Sprintf("%s/v2/open/worksheet/deleteRow", cfg.APIBase)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return errors.Wrap(err, "创建请求失败")
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	log.Sugar.Infow("调用明道云 API 删除记录",
+		"url", url,
+		"worksheetId", worksheetId,
+		"rowId", rowId,
+	)
+
+	resp, err := api.httpClient.Do(req)
+	if err != nil {
+		return errors.Wrap(err, "发送请求失败")
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return errors.Wrap(err, "读取响应失败")
+	}
+
+	var mdyResp MingDaoYunResponse
+	if err := json.Unmarshal(body, &mdyResp); err != nil {
+		log.Sugar.Errorw("解析明道云响应失败", "body", string(body), "err", err)
+		return errors.Wrap(err, "解析响应失败")
+	}
+
+	if !mdyResp.Success {
+		log.Sugar.Errorw("明道云 API 返回错误",
+			"errorCode", mdyResp.ErrorCode,
+			"errorMsg", mdyResp.ErrorMsg,
+			"rowId", rowId,
+		)
+		return fmt.Errorf("明道云 API 错误: %s (code: %d)", mdyResp.ErrorMsg, mdyResp.ErrorCode)
+	}
+
+	log.Sugar.Infow("明道云记录删除成功", "worksheetId", worksheetId, "rowId", rowId)
+	return nil
+}

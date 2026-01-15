@@ -130,3 +130,42 @@ var MingDaoYunFieldOptions = map[string][]DropdownOption{
 		{Key: "4d7c60a2-1b52-4630-8cda-941c54909be7", Value: "平层"},
 	},
 }
+
+// ========== 企微员工/部门同步到明道云相关常量 ==========
+
+// MingDaoYunDepartmentFields 明道云部门表字段映射
+// Key: 字段用途, Value: 明道云字段 ID
+var MingDaoYunDepartmentFields = map[string]string{
+	"departmentId":   "69660ddb84223902b9ec7a72", // 部门ID (标题字段)
+	"departmentName": "69660ddb84223902b9ec7a73", // 部门名
+}
+
+// MingDaoYunStaffFields 明道云员工表字段映射
+// Key: 字段用途, Value: 明道云字段 ID
+var MingDaoYunStaffFields = map[string]string{
+	"wecomStaffId":  "69660d1cc91f18e9b901afd5", // 企微员工ID (标题字段)
+	"wecomUsername": "69660d1cc91f18e9b901afd7", // 企微用户名
+	"wecomAvatar":   "69660d1cc91f18e9b901afda", // 企微头像
+	"gender":        "69660d1cc91f18e9b901afdc", // 性别
+	"phone":         "69660d1cc91f18e9b901afdf", // 手机号码
+	"email":         "69660d1cc91f18e9b901afe0", // 邮箱
+	"wecomDepId":    "69660d1cc91f18e9b901afe3", // 企微部门ID (关联字段)
+	"position":      "69660d1cc91f18e9b901afe7", // 岗位
+	"staffStatus":   "69660d1cc91f18e9b901aff1", // 员工状态
+}
+
+// MingDaoYunGenderOptions 员工性别选项映射
+// Key: OpenSCRM Gender值, Value: 明道云选项Key
+var MingDaoYunGenderOptions = map[int]string{
+	1: "27a67e42-741f-43a1-ac68-fa1a752f7373", // 男
+	2: "2bbc0fe0-7cce-4764-9e62-806625a36283", // 女
+}
+
+// MingDaoYunStaffStatusOptions 员工状态选项映射
+// Key: OpenSCRM Status值, Value: 明道云选项Key
+var MingDaoYunStaffStatusOptions = map[int]string{
+	1: "03084068-0aa5-4c4a-9c6b-37a0d960a877", // 在职 (已激活)
+	2: "7115d2e2-7d18-4881-b394-9181c395d691", // 离职 (已禁用)
+	4: "8acd41cf-2233-4f07-9af4-5f45e4d1cb8e", // 试用 (未激活)
+	5: "7115d2e2-7d18-4881-b394-9181c395d691", // 离职 (退出企业)
+}
