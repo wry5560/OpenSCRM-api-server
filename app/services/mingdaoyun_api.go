@@ -553,9 +553,15 @@ func (api *MingDaoYunAPI) GetViewFields(worksheetId, viewId string) ([]ViewField
 
 	// 构建字段 ID 到字段信息的映射
 	fieldMap := make(map[string]*FieldInfo)
+	var allFieldIDs []string
 	for i := range wsInfo.Fields {
 		fieldMap[wsInfo.Fields[i].ID] = &wsInfo.Fields[i]
+		allFieldIDs = append(allFieldIDs, wsInfo.Fields[i].ID)
 	}
+	log.Sugar.Debugw("工作表字段ID列表",
+		"count", len(allFieldIDs),
+		"ids", allFieldIDs,
+	)
 
 	var fields []ViewField
 
