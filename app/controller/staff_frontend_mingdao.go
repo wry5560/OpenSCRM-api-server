@@ -12,12 +12,14 @@ import (
 // StaffFrontendMingDaoHandler 侧边栏明道云接口处理器
 type StaffFrontendMingDaoHandler struct {
 	api *services.MingDaoYunAPI
+	srv *services.MingDaoYunService
 }
 
 // NewStaffFrontendMingDaoHandler 创建侧边栏明道云处理器实例
 func NewStaffFrontendMingDaoHandler() *StaffFrontendMingDaoHandler {
 	return &StaffFrontendMingDaoHandler{
 		api: services.NewMingDaoYunAPI(),
+		srv: services.NewMingDaoYunService(),
 	}
 }
 
@@ -253,13 +255,14 @@ type BindCustomerRequest struct {
 // BindCustomer 绑定客户
 // @tags 侧边栏-明道云
 // @Summary 绑定客户
-// @Description 将企微外部联系人ID绑定到明道云客户记录
+// @Description 将企微外部联系人ID绑定到明道云客户记录，同时写入所有微信相关字段
 // @Accept json
 // @Produce json
 // @Param row_id path string true "明道云记录ID"
 // @Param body body BindCustomerRequest true "绑定信息"
 // @Success 200 {object} app.JSONResult{} "成功"
 // @Failure 400 {object} app.JSONResult{} "请求错误"
+// @Failure 409 {object} app.JSONResult{} "客户已绑定"
 // @Router /api/v1/staff-frontend/mingdao/customer/{row_id}/bind [post]
 func (h *StaffFrontendMingDaoHandler) BindCustomer(c *gin.Context) {
 	handler := app.NewHandler(c)
@@ -276,8 +279,76 @@ func (h *StaffFrontendMingDaoHandler) BindCustomer(c *gin.Context) {
 		return
 	}
 
-	if err := h.api.BindCustomer(rowID, req.ExternalUserID, req.StaffID); err != nil {
+	// 检查目标客户是否已绑定
+	isBound, _, err := h.srv.CheckCustomerBound(rowID)
+	if err != nil {
+		handler.ResponseError(errors.Wrap(err, "检查客户绑定状态失败"))
+		return
+	}
+	if isBound {
+		handler.ResponseBadRequestError(errors.New("该客户已有微信关联，请选择其他客户"))
+		return
+	}
+
+	// 使用服务层方法，获取完整的企微客户信息并写入明道云
+	if err := h.srv.BindCustomerWithFullInfo(rowID, req.ExternalUserID, req.StaffID); err != nil {
 		handler.ResponseError(errors.Wrap(err, "绑定客户失败"))
+		return
+	}
+
+	handler.ResponseItem(nil)
+}
+
+// ChangeBindingRequest 更改绑定请求
+type ChangeBindingRequest struct {
+	OldRowID       string `json:"old_row_id" binding:"required"`
+	ExternalUserID string `json:"external_user_id" binding:"required"`
+	StaffID        string `json:"staff_id"`
+}
+
+// ChangeBinding 更改客户绑定
+// @tags 侧边栏-明道云
+// @Summary 更改客户绑定
+// @Description 更改微信关联的客户，清除原客户的微信信息，绑定新客户
+// @Accept json
+// @Produce json
+// @Param row_id path string true "新客户的明道云记录ID"
+// @Param body body ChangeBindingRequest true "更改绑定信息"
+// @Success 200 {object} app.JSONResult{} "成功"
+// @Failure 400 {object} app.JSONResult{} "请求错误"
+// @Failure 409 {object} app.JSONResult{} "客户已绑定"
+// @Router /api/v1/staff-frontend/mingdao/customer/{row_id}/change-binding [post]
+func (h *StaffFrontendMingDaoHandler) ChangeBinding(c *gin.Context) {
+	handler := app.NewHandler(c)
+
+	newRowID := c.Param("row_id")
+	if newRowID == "" {
+		handler.ResponseBadRequestError(errors.New("row_id 参数不能为空"))
+		return
+	}
+
+	var req ChangeBindingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		handler.ResponseBadRequestError(errors.Wrap(err, "参数错误"))
+		return
+	}
+
+	// 检查新客户是否已绑定（如果新客户和原客户不同）
+	if newRowID != req.OldRowID {
+		isBound, _, err := h.srv.CheckCustomerBound(newRowID)
+		if err != nil {
+			handler.ResponseError(errors.Wrap(err, "检查客户绑定状态失败"))
+			return
+		}
+		if isBound {
+			handler.ResponseBadRequestError(errors.New("该客户已有微信关联，请选择其他客户"))
+			return
+		}
+	}
+
+	// 更改绑定
+	if err := h.srv.ChangeCustomerBinding(req.OldRowID, newRowID, req.ExternalUserID, req.StaffID); err != nil {
+		handler.ResponseError(errors.Wrap(err, "更改绑定失败"))
 		return
 	}
 

@@ -240,6 +240,22 @@ func (api *MingDaoYunAPI) UpdateCustomerWeComInfo(rowId string, info CustomerWeC
 	return api.UpdateRow(rowId, fields)
 }
 
+// ClearCustomerWeComInfo 清除客户的企微信息（将所有微信相关字段设为空）
+func (api *MingDaoYunAPI) ClearCustomerWeComInfo(rowId string) error {
+	fields := make(map[string]string)
+
+	// 将所有微信相关字段设为空字符串
+	fields["wechatName"] = ""
+	fields["wechatGender"] = ""
+	fields["wecomExternalUserid"] = ""
+	fields["wechatAvatar"] = ""
+	fields["wechatUnionId"] = ""
+	fields["wecomExternalProfile"] = ""
+	fields["wecomStaffID"] = ""
+
+	return api.UpdateRow(rowId, fields)
+}
+
 // GetFilterRows 查询记录列表
 func (api *MingDaoYunAPI) GetFilterRows(filters []FilterCondition, pageSize, pageIndex int) (*MingDaoCustomerSearchResult, error) {
 	cfg := conf.Settings.MingDaoYun
@@ -428,22 +444,92 @@ func (api *MingDaoYunAPI) SearchCustomers(keyword string, pageSize, pageIndex in
 		return nil, errors.New("搜索关键字不能为空")
 	}
 
-	// 使用号码字段（手机号）或客户编号字段进行搜索
-	// 号码字段ID: 692f976f7001b729cd1c01c1
-	// 客户编号字段ID: 693660e95326c71216b1b87a
-	filters := []FilterCondition{
-		{
-			ControlID:  "692f976f7001b729cd1c01c1", // 号码字段
-			DataType:   2,                          // 文本类型
-			SpliceType: 2,                          // OR
-			FilterType: 13,                         // 包含
-			Value:      keyword,
-		},
-	}
-
-	result, err := api.GetFilterRows(filters, pageSize, pageIndex)
+	// 使用 Keywords 全局搜索，支持搜索手机号、客户编号等字段
+	result, err := api.GetFilterRowsWithKeywords(keyword, pageSize, pageIndex)
 	if err != nil {
 		return nil, err
+	}
+
+	return result, nil
+}
+
+// GetFilterRowsWithKeywords 使用关键字搜索记录
+func (api *MingDaoYunAPI) GetFilterRowsWithKeywords(keywords string, pageSize, pageIndex int) (*MingDaoCustomerSearchResult, error) {
+	cfg := conf.Settings.MingDaoYun
+	if cfg.APIBase == "" || cfg.AppKey == "" || cfg.Sign == "" {
+		return nil, errors.New("明道云配置不完整")
+	}
+
+	reqBody := GetFilterRowsRequest{
+		AppKey:      cfg.AppKey,
+		Sign:        cfg.Sign,
+		WorksheetID: cfg.CustomerWorksheetID,
+		PageSize:    pageSize,
+		PageIndex:   pageIndex,
+		Keywords:    keywords,
+	}
+
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, errors.Wrap(err, "序列化请求体失败")
+	}
+
+	url := fmt.Sprintf("%s/v2/open/worksheet/getFilterRows", cfg.APIBase)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return nil, errors.Wrap(err, "创建请求失败")
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	log.Sugar.Infow("调用明道云 API 关键字搜索",
+		"url", url,
+		"keywords", keywords,
+	)
+
+	resp, err := api.httpClient.Do(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "发送请求失败")
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "读取响应失败")
+	}
+
+	// 解析响应
+	var mdyResp struct {
+		Success   bool `json:"success"`
+		ErrorCode int  `json:"error_code"`
+		ErrorMsg  string `json:"error_msg"`
+		Data      struct {
+			Rows  []map[string]interface{} `json:"rows"`
+			Total int                      `json:"total"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &mdyResp); err != nil {
+		log.Sugar.Errorw("解析明道云响应失败", "body", string(body), "err", err)
+		return nil, errors.Wrap(err, "解析响应失败")
+	}
+
+	if !mdyResp.Success {
+		log.Sugar.Errorw("明道云 API 返回错误",
+			"errorCode", mdyResp.ErrorCode,
+			"errorMsg", mdyResp.ErrorMsg,
+		)
+		return nil, fmt.Errorf("明道云 API 错误: %s (code: %d)", mdyResp.ErrorMsg, mdyResp.ErrorCode)
+	}
+
+	// 转换结果
+	result := &MingDaoCustomerSearchResult{
+		Total: mdyResp.Data.Total,
+	}
+	for _, row := range mdyResp.Data.Rows {
+		item := MingDaoCustomerInfo{
+			RowID:  fmt.Sprintf("%v", row["rowid"]),
+			Fields: row,
+		}
+		result.Items = append(result.Items, item)
 	}
 
 	return result, nil

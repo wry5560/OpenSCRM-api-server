@@ -196,6 +196,182 @@ func (s *MingDaoYunService) updateMingDaoYunCustomer(userNO, extStaffID, extCust
 	)
 }
 
+// BindCustomerWithFullInfo 绑定客户并写入完整的企微信息
+// rowId: 明道云记录ID
+// extCustomerID: 企微外部联系人ID
+// extStaffID: 企微员工ID（可选）
+func (s *MingDaoYunService) BindCustomerWithFullInfo(rowId, extCustomerID, extStaffID string) error {
+	if rowId == "" || extCustomerID == "" {
+		return errors.New("rowId 和 extCustomerID 不能为空")
+	}
+
+	// 获取企业微信客户端
+	extCorpID := conf.Settings.WeWork.ExtCorpID
+	client, err := we_work.Clients.Get(extCorpID)
+	if err != nil {
+		log.Sugar.Errorw("获取企业微信客户端失败", "err", err, "extCorpID", extCorpID)
+		return errors.Wrap(err, "获取企业微信客户端失败")
+	}
+
+	// 获取客户详情
+	customerInfo, err := client.Customer.GetExternalContact(extCustomerID)
+	if err != nil {
+		log.Sugar.Errorw("获取客户详情失败", "err", err, "extCustomerID", extCustomerID)
+		return errors.Wrap(err, "获取客户详情失败")
+	}
+
+	// 构建更新信息
+	info := CustomerWeComInfo{
+		WecomExternalUserid: extCustomerID,
+		WechatName:          customerInfo.ExternalContact.Name,
+		WechatGender:        genderToString(customerInfo.ExternalContact.Gender),
+		WechatAvatar:        customerInfo.ExternalContact.Avatar,
+		WechatUnionId:       customerInfo.ExternalContact.Unionid,
+	}
+
+	if extStaffID != "" {
+		info.WecomStaffID = extStaffID
+	}
+
+	// 序列化对外信息（ExternalProfile 是结构体，检查是否有内容）
+	if customerInfo.ExternalContact.ExternalProfile.ExternalCorpName != "" ||
+		len(customerInfo.ExternalContact.ExternalProfile.ExternalAttr) > 0 {
+		profileJSON, err := json.Marshal(customerInfo.ExternalContact.ExternalProfile)
+		if err == nil {
+			info.WecomExternalProfile = string(profileJSON)
+		}
+	}
+
+	log.Sugar.Infow("绑定客户并写入完整企微信息",
+		"rowId", rowId,
+		"extCustomerID", extCustomerID,
+		"wechatName", info.WechatName,
+		"wechatGender", info.WechatGender,
+		"wechatAvatar", info.WechatAvatar,
+		"wechatUnionId", info.WechatUnionId,
+		"extStaffID", info.WecomStaffID,
+	)
+
+	// 更新明道云记录
+	if err := s.api.UpdateCustomerWeComInfo(rowId, info); err != nil {
+		log.Sugar.Errorw("绑定客户失败",
+			"err", err,
+			"rowId", rowId,
+			"extCustomerID", extCustomerID,
+		)
+		return errors.Wrap(err, "绑定客户失败")
+	}
+
+	log.Sugar.Infow("绑定客户成功",
+		"rowId", rowId,
+		"wechatName", info.WechatName,
+	)
+
+	return nil
+}
+
+// ClearCustomerWeComInfo 清除客户的企微相关信息
+// rowId: 明道云记录ID
+func (s *MingDaoYunService) ClearCustomerWeComInfo(rowId string) error {
+	if rowId == "" {
+		return errors.New("rowId 不能为空")
+	}
+
+	// 构建清空信息（所有字段设为空字符串）
+	info := CustomerWeComInfo{
+		WecomExternalUserid:  "",
+		WechatName:           "",
+		WechatGender:         "",
+		WechatAvatar:         "",
+		WechatUnionId:        "",
+		WecomExternalProfile: "",
+		WecomStaffID:         "",
+	}
+
+	log.Sugar.Infow("清除客户企微信息",
+		"rowId", rowId,
+	)
+
+	// 更新明道云记录（清空所有微信相关字段）
+	if err := s.api.ClearCustomerWeComInfo(rowId); err != nil {
+		log.Sugar.Errorw("清除客户企微信息失败",
+			"err", err,
+			"rowId", rowId,
+		)
+		return errors.Wrap(err, "清除客户企微信息失败")
+	}
+
+	log.Sugar.Infow("清除客户企微信息成功",
+		"rowId", rowId,
+	)
+
+	return nil
+}
+
+// ChangeCustomerBinding 更改客户绑定
+// oldRowId: 原客户的明道云记录ID（需要清除微信信息）
+// newRowId: 新客户的明道云记录ID（需要绑定微信信息）
+// extCustomerID: 企微外部联系人ID
+// extStaffID: 企微员工ID（可选）
+func (s *MingDaoYunService) ChangeCustomerBinding(oldRowId, newRowId, extCustomerID, extStaffID string) error {
+	if oldRowId == "" || newRowId == "" || extCustomerID == "" {
+		return errors.New("oldRowId、newRowId 和 extCustomerID 不能为空")
+	}
+
+	log.Sugar.Infow("更改客户绑定",
+		"oldRowId", oldRowId,
+		"newRowId", newRowId,
+		"extCustomerID", extCustomerID,
+	)
+
+	// 1. 清除原客户的微信信息
+	if err := s.ClearCustomerWeComInfo(oldRowId); err != nil {
+		return errors.Wrap(err, "清除原客户微信信息失败")
+	}
+
+	// 2. 绑定新客户（写入完整微信信息）
+	if err := s.BindCustomerWithFullInfo(newRowId, extCustomerID, extStaffID); err != nil {
+		return errors.Wrap(err, "绑定新客户失败")
+	}
+
+	log.Sugar.Infow("更改客户绑定成功",
+		"oldRowId", oldRowId,
+		"newRowId", newRowId,
+	)
+
+	return nil
+}
+
+// CheckCustomerBound 检查客户是否已绑定微信
+// rowId: 明道云记录ID
+// 返回: 是否已绑定, 绑定的企微外部ID, 错误
+func (s *MingDaoYunService) CheckCustomerBound(rowId string) (bool, string, error) {
+	if rowId == "" {
+		return false, "", errors.New("rowId 不能为空")
+	}
+
+	// 获取客户详情
+	customer, err := s.api.GetRowByID(rowId)
+	if err != nil {
+		return false, "", errors.Wrap(err, "获取客户详情失败")
+	}
+
+	if customer == nil {
+		return false, "", errors.New("客户不存在")
+	}
+
+	// 检查是否已绑定（检查 wecomExternalUserid 字段）
+	// 字段ID 对应 wecomExternalUserid
+	wecomExternalUseridFieldID := constants.MingDaoYunCustomerFields["wecomExternalUserid"]
+	if extUserID, ok := customer.Fields[wecomExternalUseridFieldID]; ok {
+		if extUserIDStr, isStr := extUserID.(string); isStr && extUserIDStr != "" {
+			return true, extUserIDStr, nil
+		}
+	}
+
+	return false, "", nil
+}
+
 // genderToString 将性别枚举转换为字符串
 func genderToString(gender workwx.UserGender) string {
 	switch gender {

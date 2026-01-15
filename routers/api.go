@@ -160,6 +160,7 @@ func NewRouter() *gin.Engine {
 		staffApiV1.GET("/mingdao/customer/:row_id", mingdaoCustomerHandler.GetCustomer)
 		staffApiV1.PUT("/mingdao/customer/:row_id", mingdaoCustomerHandler.UpdateCustomer)
 		staffApiV1.POST("/mingdao/customer/:row_id/bind", mingdaoCustomerHandler.BindCustomer)
+		staffApiV1.POST("/mingdao/customer/:row_id/change-binding", mingdaoCustomerHandler.ChangeBinding)
 	}
 
 	//企业普通管理员后台
