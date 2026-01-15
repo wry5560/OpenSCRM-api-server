@@ -277,17 +277,6 @@ func (s *MingDaoYunService) ClearCustomerWeComInfo(rowId string) error {
 		return errors.New("rowId 不能为空")
 	}
 
-	// 构建清空信息（所有字段设为空字符串）
-	info := CustomerWeComInfo{
-		WecomExternalUserid:  "",
-		WechatName:           "",
-		WechatGender:         "",
-		WechatAvatar:         "",
-		WechatUnionId:        "",
-		WecomExternalProfile: "",
-		WecomStaffID:         "",
-	}
-
 	log.Sugar.Infow("清除客户企微信息",
 		"rowId", rowId,
 	)
