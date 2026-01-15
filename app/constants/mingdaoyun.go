@@ -147,10 +147,10 @@ var MingDaoYunFieldOptions = map[string][]DropdownOption{
 // ========== 企微员工/部门同步到明道云相关常量 ==========
 
 // MingDaoYunDepartmentFields 明道云部门表字段映射
-// Key: 字段用途, Value: 明道云字段 ID
+// Key: 字段用途, Value: 明道云字段别名
 var MingDaoYunDepartmentFields = map[string]string{
-	"departmentId":   "69660ddb84223902b9ec7a72", // 部门ID (标题字段)
-	"departmentName": "69660ddb84223902b9ec7a73", // 部门名
+	"departmentId":   "dept_id",   // 部门ID (标题字段)
+	"departmentName": "dept_name", // 部门名
 }
 
 // MingDaoYunStaffFields 明道云员工表字段映射
