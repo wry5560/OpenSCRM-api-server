@@ -25,9 +25,10 @@ func NewMingDaoYunStaffSyncService() *MingDaoYunStaffSyncService {
 }
 
 // IsEnabled 检查是否启用员工同步
+// 使用硬编码的工作表别名，只需检查 API 配置和开关
 func (s *MingDaoYunStaffSyncService) IsEnabled() bool {
 	cfg := conf.Settings.MingDaoYun
-	return cfg.EnableStaffSync && cfg.StaffWorksheetID != "" && cfg.DepartmentWorksheetID != ""
+	return cfg.EnableStaffSync && cfg.AppKey != "" && cfg.Sign != ""
 }
 
 // ========== 部门同步 ==========
@@ -44,7 +45,6 @@ func (s *MingDaoYunStaffSyncService) SyncDepartmentToMingDaoYun(dept *models.Dep
 		return errors.New("部门对象为空")
 	}
 
-	cfg := conf.Settings.MingDaoYun
 	deptExtID := strconv.FormatInt(dept.ExtID, 10)
 
 	log.Sugar.Infow("开始同步部门到明道云",
@@ -65,14 +65,14 @@ func (s *MingDaoYunStaffSyncService) SyncDepartmentToMingDaoYun(dept *models.Dep
 
 		if existingRow != nil {
 			// 存在则更新
-			err = s.api.EditRowByWorksheet(cfg.DepartmentWorksheetID, existingRow.RowID, controls)
+			err = s.api.EditRowByWorksheet(constants.MingDaoYunDepartmentWorksheetAlias, existingRow.RowID, controls)
 			if err != nil {
 				return errors.Wrap(err, "更新部门记录失败")
 			}
 			log.Sugar.Infow("部门记录更新成功", "deptExtId", deptExtID, "rowId", existingRow.RowID)
 		} else {
 			// 不存在则创建
-			rowId, err := s.api.CreateRow(cfg.DepartmentWorksheetID, controls)
+			rowId, err := s.api.CreateRow(constants.MingDaoYunDepartmentWorksheetAlias, controls)
 			if err != nil {
 				return errors.Wrap(err, "创建部门记录失败")
 			}
@@ -88,7 +88,7 @@ func (s *MingDaoYunStaffSyncService) SyncDepartmentToMingDaoYun(dept *models.Dep
 		}
 
 		// 物理删除部门记录
-		err = s.api.DeleteRow(cfg.DepartmentWorksheetID, existingRow.RowID)
+		err = s.api.DeleteRow(constants.MingDaoYunDepartmentWorksheetAlias, existingRow.RowID)
 		if err != nil {
 			return errors.Wrap(err, "删除部门记录失败")
 		}
@@ -118,8 +118,6 @@ func (s *MingDaoYunStaffSyncService) buildDepartmentControls(dept *models.Depart
 
 // findDepartmentByExtID 根据企微部门ID查找明道云记录
 func (s *MingDaoYunStaffSyncService) findDepartmentByExtID(extID string) (*MingDaoCustomerInfo, error) {
-	cfg := conf.Settings.MingDaoYun
-
 	filters := []FilterCondition{
 		{
 			ControlID:  constants.MingDaoYunDepartmentFields["departmentId"],
@@ -130,7 +128,7 @@ func (s *MingDaoYunStaffSyncService) findDepartmentByExtID(extID string) (*MingD
 		},
 	}
 
-	result, err := s.api.GetFilterRowsByWorksheet(cfg.DepartmentWorksheetID, filters, 1, 1)
+	result, err := s.api.GetFilterRowsByWorksheet(constants.MingDaoYunDepartmentWorksheetAlias, filters, 1, 1)
 	if err != nil {
 		return nil, err
 	}
@@ -156,8 +154,6 @@ func (s *MingDaoYunStaffSyncService) SyncStaffToMingDaoYun(staff *models.Staff, 
 		return errors.New("员工对象为空")
 	}
 
-	cfg := conf.Settings.MingDaoYun
-
 	log.Sugar.Infow("开始同步员工到明道云",
 		"action", action,
 		"staffExtId", staff.ExtID,
@@ -182,14 +178,14 @@ func (s *MingDaoYunStaffSyncService) SyncStaffToMingDaoYun(staff *models.Staff, 
 
 		if existingRow != nil {
 			// 存在则更新
-			err = s.api.EditRowByWorksheet(cfg.StaffWorksheetID, existingRow.RowID, controls)
+			err = s.api.EditRowByWorksheet(constants.MingDaoYunStaffWorksheetAlias, existingRow.RowID, controls)
 			if err != nil {
 				return errors.Wrap(err, "更新员工记录失败")
 			}
 			log.Sugar.Infow("员工记录更新成功", "staffExtId", staff.ExtID, "rowId", existingRow.RowID)
 		} else {
 			// 不存在则创建
-			rowId, err := s.api.CreateRow(cfg.StaffWorksheetID, controls)
+			rowId, err := s.api.CreateRow(constants.MingDaoYunStaffWorksheetAlias, controls)
 			if err != nil {
 				return errors.Wrap(err, "创建员工记录失败")
 			}
@@ -213,7 +209,7 @@ func (s *MingDaoYunStaffSyncService) SyncStaffToMingDaoYun(staff *models.Staff, 
 			},
 		}
 
-		err = s.api.EditRowByWorksheet(cfg.StaffWorksheetID, existingRow.RowID, controls)
+		err = s.api.EditRowByWorksheet(constants.MingDaoYunStaffWorksheetAlias, existingRow.RowID, controls)
 		if err != nil {
 			return errors.Wrap(err, "更新员工离职状态失败")
 		}
@@ -301,8 +297,6 @@ func (s *MingDaoYunStaffSyncService) buildStaffControls(staff *models.Staff, dep
 
 // findStaffByExtID 根据企微员工ID查找明道云记录
 func (s *MingDaoYunStaffSyncService) findStaffByExtID(extID string) (*MingDaoCustomerInfo, error) {
-	cfg := conf.Settings.MingDaoYun
-
 	filters := []FilterCondition{
 		{
 			ControlID:  constants.MingDaoYunStaffFields["wecomStaffId"],
@@ -313,7 +307,7 @@ func (s *MingDaoYunStaffSyncService) findStaffByExtID(extID string) (*MingDaoCus
 		},
 	}
 
-	result, err := s.api.GetFilterRowsByWorksheet(cfg.StaffWorksheetID, filters, 1, 1)
+	result, err := s.api.GetFilterRowsByWorksheet(constants.MingDaoYunStaffWorksheetAlias, filters, 1, 1)
 	if err != nil {
 		return nil, err
 	}

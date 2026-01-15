@@ -34,5 +34,11 @@ func Start() {
 		log.Sugar.Errorw("AddSingleton failed", "err", err)
 	}
 
+	// 明道云增量同步任务 - 每10分钟执行（秒 分 时 日 月 周）
+	_, err = gcron.AddSingleton("0 */10 * * * *", (MingDaoYunSync{}).IncrementalSync, "MingDaoYunIncrementalSync")
+	if err != nil {
+		log.Sugar.Errorw("AddSingleton failed", "err", err)
+	}
+
 	log.Sugar.Infow("Tasks Running")
 }

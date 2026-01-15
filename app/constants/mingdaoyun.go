@@ -4,6 +4,19 @@ package constants
 // 用于在企业微信回调中识别来自明道云的添加好友请求
 const MingDaoYunStatePrefix = "mdy:"
 
+// ========== 明道云工作表别名常量 ==========
+// 使用工作表别名代替 ID，简化配置，避免不同用户/环境的 ID 不一致问题
+// 别名在明道云应用内唯一，API 调用时可直接使用别名替代 worksheetId
+
+const (
+	// MingDaoYunCustomerWorksheetAlias 客户表别名
+	MingDaoYunCustomerWorksheetAlias = "bjxcustomerinfo"
+	// MingDaoYunStaffWorksheetAlias 员工表别名
+	MingDaoYunStaffWorksheetAlias = "starstaffinfo"
+	// MingDaoYunDepartmentWorksheetAlias 部门表别名
+	MingDaoYunDepartmentWorksheetAlias = "stardeptinfo"
+)
+
 // MingDaoYunCustomerFields 明道云客户表字段映射
 // Key: 字段用途, Value: 明道云字段 ID
 var MingDaoYunCustomerFields = map[string]string{
@@ -141,17 +154,17 @@ var MingDaoYunDepartmentFields = map[string]string{
 }
 
 // MingDaoYunStaffFields 明道云员工表字段映射
-// Key: 字段用途, Value: 明道云字段 ID
+// Key: 字段用途, Value: 明道云字段别名（优先使用别名，无别名则使用 ID）
 var MingDaoYunStaffFields = map[string]string{
-	"wecomStaffId":  "69660d1cc91f18e9b901afd5", // 企微员工ID (标题字段)
-	"wecomUsername": "69660d1cc91f18e9b901afd7", // 企微用户名
-	"wecomAvatar":   "69660d1cc91f18e9b901afda", // 企微头像
-	"gender":        "69660d1cc91f18e9b901afdc", // 性别
-	"phone":         "69660d1cc91f18e9b901afdf", // 手机号码
-	"email":         "69660d1cc91f18e9b901afe0", // 邮箱
-	"wecomDepId":    "69660d1cc91f18e9b901afe3", // 企微部门ID (关联字段)
-	"position":      "69660d1cc91f18e9b901afe7", // 岗位
-	"staffStatus":   "69660d1cc91f18e9b901aff1", // 员工状态
+	"wecomStaffId":  "wecom_staff_id", // 企微员工ID (标题字段)
+	"wecomUsername": "wecom_username", // 企微用户名
+	"wecomAvatar":   "wecom_avatar",   // 企微头像
+	"gender":        "gender",         // 性别
+	"phone":         "phone",          // 手机号码
+	"email":         "email",          // 邮箱
+	"wecomDepId":    "wecom_dep_id",   // 企微部门ID (关联字段)
+	"position":      "position",       // 岗位
+	"staffStatus":   "staff_status",   // 员工状态
 }
 
 // MingDaoYunGenderOptions 员工性别选项映射

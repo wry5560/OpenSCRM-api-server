@@ -30,11 +30,11 @@ type MingDaoYunConfig struct {
 	AppKey string `json:"app_key"`
 	// Sign 明道云签名
 	Sign string `json:"sign"`
-	// CustomerWorksheetID 客户表工作表 ID
+	// CustomerWorksheetID 客户表工作表 ID（仍在使用，客户同步服务依赖此配置）
 	CustomerWorksheetID string `json:"customer_worksheet_id"`
-	// StaffWorksheetID 员工表工作表 ID
+	// StaffWorksheetID 员工表工作表 ID（已废弃，改用代码中硬编码的别名常量 constants.MingDaoYunStaffWorksheetAlias）
 	StaffWorksheetID string `json:"staff_worksheet_id"`
-	// DepartmentWorksheetID 部门表工作表 ID
+	// DepartmentWorksheetID 部门表工作表 ID（已废弃，改用代码中硬编码的别名常量 constants.MingDaoYunDepartmentWorksheetAlias）
 	DepartmentWorksheetID string `json:"department_worksheet_id"`
 	// EnableStaffSync 是否启用员工同步到明道云
 	EnableStaffSync bool `json:"enable_staff_sync"`
