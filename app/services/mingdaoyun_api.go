@@ -281,9 +281,10 @@ type WorksheetInfoResponse struct {
 
 // ViewInfo 视图信息
 type ViewInfo struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Type     string `json:"type"`
+	ID       string   `json:"id"`
+	Name     string   `json:"name"`
+	Type     string   `json:"type"`
+	Controls []string `json:"controls,omitempty"` // 视图包含的字段ID列表
 }
 
 // FieldInfo V3 字段信息
@@ -302,15 +303,50 @@ type FieldInfo struct {
 	DataSource string        `json:"dataSource"`
 }
 
-// GetWorksheetInfo 获取工作表结构（V3 API）
+// GetWorksheetInfo 获取工作表结构（使用 V2 API，因为 V3 API 暂不支持别名）
 func (api *MingDaoYunAPI) GetWorksheetInfo(worksheetId string) (*WorksheetInfoResponse, error) {
-	path := fmt.Sprintf("/v3/app/worksheets/%s", worksheetId)
-
-	respBody, err := api.doV3Request("GET", path, nil)
-	if err != nil {
-		return nil, err
+	cfg := conf.Settings.MingDaoYun
+	if cfg.APIBase == "" || cfg.AppKey == "" || cfg.Sign == "" {
+		return nil, errors.New("明道云配置不完整")
 	}
 
+	// V2 API 请求体
+	reqBody := map[string]interface{}{
+		"appKey":      cfg.AppKey,
+		"sign":        cfg.Sign,
+		"worksheetId": worksheetId,
+	}
+
+	url := fmt.Sprintf("%s/v2/open/worksheet/getWorksheetInfo", cfg.APIBase)
+
+	log.Sugar.Debugw("调用明道云 V2 API 获取工作表结构",
+		"url", url,
+		"worksheetId", worksheetId,
+	)
+
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, errors.Wrap(err, "序列化请求体失败")
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return nil, errors.Wrap(err, "创建请求失败")
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := api.httpClient.Do(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "发送请求失败")
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "读取响应失败")
+	}
+
+	// V2 API 响应结构
 	var mdyResp struct {
 		Success   bool   `json:"success"`
 		ErrorCode int    `json:"error_code"`
@@ -320,28 +356,26 @@ func (api *MingDaoYunAPI) GetWorksheetInfo(worksheetId string) (*WorksheetInfoRe
 			Name        string `json:"name"`
 			Alias       string `json:"alias"`
 			Views       []struct {
-				ID   string `json:"id"`
-				Name string `json:"name"`
-				Type string `json:"type"`
+				ViewID   string   `json:"viewId"`
+				Name     string   `json:"name"`
+				ViewType int      `json:"viewType"`
+				Controls []string `json:"controls"` // 视图包含的字段ID列表
 			} `json:"views"`
-			Fields []struct {
-				ID         string `json:"id"`
-				Name       string `json:"name"`
+			Controls []struct {
+				ControlID  string `json:"controlId"`
+				ControlName string `json:"controlName"`
 				Alias      string `json:"alias"`
-				Type       string `json:"type"`
+				Type       int    `json:"type"`
 				Required   bool   `json:"required"`
-				IsHidden   bool   `json:"isHidden"`
-				IsReadOnly bool   `json:"isReadOnly"`
-				IsTitle    bool   `json:"isTitle"`
-				SubType    int    `json:"subType"`
-				Precision  int    `json:"precision"`
+				Attribute  int    `json:"attribute"`
 				Options    []struct {
 					Key   string `json:"key"`
 					Value string `json:"value"`
 					Index int    `json:"index"`
+					Color string `json:"color"`
 				} `json:"options"`
 				DataSource string `json:"dataSource"`
-			} `json:"fields"`
+			} `json:"controls"`
 		} `json:"data"`
 	}
 
@@ -365,29 +399,28 @@ func (api *MingDaoYunAPI) GetWorksheetInfo(worksheetId string) (*WorksheetInfoRe
 		Alias:       mdyResp.Data.Alias,
 	}
 
+	// 转换视图
 	for _, v := range mdyResp.Data.Views {
 		result.Views = append(result.Views, ViewInfo{
-			ID:   v.ID,
-			Name: v.Name,
-			Type: v.Type,
+			ID:       v.ViewID,
+			Name:     v.Name,
+			Controls: v.Controls,
 		})
 	}
 
-	for _, f := range mdyResp.Data.Fields {
+	// 转换字段，将 V2 的 type 数字转换为字符串
+	for _, c := range mdyResp.Data.Controls {
 		field := FieldInfo{
-			ID:         f.ID,
-			Name:       f.Name,
-			Alias:      f.Alias,
-			Type:       f.Type,
-			Required:   f.Required,
-			IsHidden:   f.IsHidden,
-			IsReadOnly: f.IsReadOnly,
-			IsTitle:    f.IsTitle,
-			SubType:    f.SubType,
-			Precision:  f.Precision,
-			DataSource: f.DataSource,
+			ID:         c.ControlID,
+			Name:       c.ControlName,
+			Alias:      c.Alias,
+			Type:       convertV2TypeToString(c.Type),
+			Required:   c.Required,
+			IsHidden:   false, // V2 API 没有直接返回此字段
+			IsReadOnly: c.Attribute == 1,
+			DataSource: c.DataSource,
 		}
-		for _, opt := range f.Options {
+		for _, opt := range c.Options {
 			field.Options = append(field.Options, FieldOption{
 				Key:   opt.Key,
 				Value: opt.Value,
@@ -400,6 +433,63 @@ func (api *MingDaoYunAPI) GetWorksheetInfo(worksheetId string) (*WorksheetInfoRe
 	return result, nil
 }
 
+// convertV2TypeToString 将 V2 API 的字段类型数字转换为字符串
+func convertV2TypeToString(typeNum int) string {
+	typeMap := map[int]string{
+		2:  "Text",
+		3:  "Phone",
+		4:  "Phone",
+		5:  "Email",
+		6:  "Number",
+		7:  "Money",
+		8:  "Money",
+		9:  "Dropdown",      // 单选 (9 是平铺单选)
+		10: "MultipleSelect", // 多选 (10 是平铺多选)
+		11: "Dropdown",      // 单选 (11 是下拉单选)
+		14: "Attachment",
+		15: "Date",
+		16: "DateTime",
+		19: "Region",
+		20: "Region",
+		21: "Relation",
+		22: "Section",       // 分段
+		23: "RichText",
+		24: "Region",
+		25: "Money",
+		26: "Collaborator",
+		27: "Collaborator",
+		28: "Rating",
+		29: "Relation",      // 关联记录
+		30: "Formula",
+		31: "Formula",
+		32: "Text",          // 串联
+		33: "AutoNumber",
+		34: "SubTable",
+		35: "Switch",        // 开关
+		36: "Switch",
+		37: "Rollup",        // 汇总
+		38: "DateFormula",
+		40: "Location",
+		41: "RichText",
+		42: "Signature",
+		43: "QueryRecord",   // 查询记录
+		44: "OCR",
+		45: "Text",          // 嵌入
+		46: "Time",
+		47: "BarCode",       // 条形码
+		48: "OrgRole",       // 组织角色
+		49: "Embed",         // 嵌入
+		50: "ApiSearch",     // API查询
+		51: "Relation",      // 关联查询
+		52: "Divider",       // 分隔线（备注类型）
+	}
+
+	if typeName, ok := typeMap[typeNum]; ok {
+		return typeName
+	}
+	return fmt.Sprintf("Unknown(%d)", typeNum)
+}
+
 // GetViewFields 获取指定视图的字段列表（用于前端动态渲染）
 func (api *MingDaoYunAPI) GetViewFields(worksheetId, viewId string) ([]ViewField, error) {
 	// 获取工作表结构
@@ -408,39 +498,67 @@ func (api *MingDaoYunAPI) GetViewFields(worksheetId, viewId string) ([]ViewField
 		return nil, errors.Wrap(err, "获取工作表结构失败")
 	}
 
-	// V3 API 返回的字段已包含类型字符串，直接过滤非隐藏字段
-	// 注意：V3 API 的视图信息不包含字段列表，需要根据字段的 isHidden 属性过滤
+	// 查找目标视图
+	var targetView *ViewInfo
+	for i := range wsInfo.Views {
+		if wsInfo.Views[i].ID == viewId {
+			targetView = &wsInfo.Views[i]
+			break
+		}
+	}
+
+	// 构建视图字段 ID 集合（如果找到了视图）
+	viewFieldSet := make(map[string]int) // 字段ID -> 在视图中的顺序
+	if targetView != nil && len(targetView.Controls) > 0 {
+		for i, controlID := range targetView.Controls {
+			viewFieldSet[controlID] = i
+		}
+		log.Sugar.Infow("找到目标视图",
+			"viewId", viewId,
+			"viewName", targetView.Name,
+			"controlsCount", len(targetView.Controls),
+		)
+	} else {
+		log.Sugar.Warnw("未找到目标视图或视图无字段配置，将返回所有非隐藏字段",
+			"viewId", viewId,
+			"viewsCount", len(wsInfo.Views),
+		)
+	}
+
+	// 构建字段 ID 到字段信息的映射
+	fieldMap := make(map[string]*FieldInfo)
+	for i := range wsInfo.Fields {
+		fieldMap[wsInfo.Fields[i].ID] = &wsInfo.Fields[i]
+	}
+
 	var fields []ViewField
-	for _, f := range wsInfo.Fields {
-		// 跳过隐藏字段
-		if f.IsHidden {
-			continue
-		}
 
-		field := ViewField{
-			ID:         f.ID,
-			Name:       f.Name,
-			Alias:      f.Alias,
-			Type:       f.Type,
-			SubType:    f.SubType,
-			Required:   f.Required,
-			IsHidden:   f.IsHidden,
-			IsReadOnly: f.IsReadOnly,
-			IsTitle:    f.IsTitle,
-			Precision:  f.Precision,
-			Editable:   isV3FieldEditable(f.Type, f.IsReadOnly),
+	// 如果有视图字段配置，按视图字段顺序返回
+	if len(viewFieldSet) > 0 {
+		// 按视图中的字段顺序排列
+		orderedFields := make([]ViewField, len(targetView.Controls))
+		for _, controlID := range targetView.Controls {
+			f, exists := fieldMap[controlID]
+			if !exists {
+				continue
+			}
+			idx := viewFieldSet[controlID]
+			orderedFields[idx] = buildViewField(f)
 		}
-
-		// 复制选项
-		for _, opt := range f.Options {
-			field.Options = append(field.Options, FieldOption{
-				Key:   opt.Key,
-				Value: opt.Value,
-				Index: opt.Index,
-			})
+		// 过滤掉空的字段
+		for _, f := range orderedFields {
+			if f.ID != "" {
+				fields = append(fields, f)
+			}
 		}
-
-		fields = append(fields, field)
+	} else {
+		// 没有视图配置，返回所有非隐藏字段
+		for _, f := range wsInfo.Fields {
+			if f.IsHidden {
+				continue
+			}
+			fields = append(fields, buildViewField(&f))
+		}
 	}
 
 	log.Sugar.Infow("获取视图字段完成",
@@ -452,8 +570,36 @@ func (api *MingDaoYunAPI) GetViewFields(worksheetId, viewId string) ([]ViewField
 	return fields, nil
 }
 
-// isV3FieldEditable 判断 V3 字段是否可编辑
-func isV3FieldEditable(fieldType string, isReadOnly bool) bool {
+// buildViewField 从 FieldInfo 构建 ViewField
+func buildViewField(f *FieldInfo) ViewField {
+	field := ViewField{
+		ID:         f.ID,
+		Name:       f.Name,
+		Alias:      f.Alias,
+		Type:       f.Type,
+		SubType:    f.SubType,
+		Required:   f.Required,
+		IsHidden:   f.IsHidden,
+		IsReadOnly: f.IsReadOnly,
+		IsTitle:    f.IsTitle,
+		Precision:  f.Precision,
+		Editable:   isFieldEditable(f.Type, f.IsReadOnly),
+	}
+
+	// 复制选项
+	for _, opt := range f.Options {
+		field.Options = append(field.Options, FieldOption{
+			Key:   opt.Key,
+			Value: opt.Value,
+			Index: opt.Index,
+		})
+	}
+
+	return field
+}
+
+// isFieldEditable 判断字段是否可编辑
+func isFieldEditable(fieldType string, isReadOnly bool) bool {
 	if isReadOnly {
 		return false
 	}
