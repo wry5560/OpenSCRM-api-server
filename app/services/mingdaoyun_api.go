@@ -536,6 +536,7 @@ func (api *MingDaoYunAPI) GetFilterRowsWithKeywords(keywords string, pageSize, p
 }
 
 // UpdateCustomerFields 更新客户指定字段
+// 动态获取视图中的可编辑字段进行验证
 func (api *MingDaoYunAPI) UpdateCustomerFields(rowId string, updates []UpdateRowControl) error {
 	cfg := conf.Settings.MingDaoYun
 	if cfg.APIBase == "" || cfg.AppKey == "" || cfg.Sign == "" {
@@ -546,25 +547,45 @@ func (api *MingDaoYunAPI) UpdateCustomerFields(rowId string, updates []UpdateRow
 		return errors.New("没有有效的字段需要更新")
 	}
 
-	// 验证字段是否可编辑
-	editableFields := make(map[string]bool)
-	for _, field := range constants.MingDaoYunCustomerDisplayFields {
-		if field.Editable {
-			editableFields[field.ID] = true
-		}
+	// 动态获取视图中的可编辑字段
+	viewFields, err := api.GetViewFields(
+		constants.MingDaoYunCustomerWorksheetAlias,
+		constants.MingDaoYunCustomerSidebarViewID,
+	)
+	if err != nil {
+		log.Sugar.Warnw("获取视图字段失败，跳过字段可编辑性验证", "err", err)
+		// 如果获取失败，直接提交更新（由明道云后端验证权限）
+		viewFields = nil
 	}
 
-	validUpdates := make([]UpdateRowControl, 0)
-	for _, update := range updates {
-		if editableFields[update.ControlID] {
-			validUpdates = append(validUpdates, update)
-		} else {
-			log.Sugar.Warnw("尝试更新不可编辑的字段", "controlId", update.ControlID)
+	var validUpdates []UpdateRowControl
+	if viewFields != nil {
+		// 构建可编辑字段映射
+		editableFields := make(map[string]bool)
+		for _, field := range viewFields {
+			if field.Editable {
+				editableFields[field.ID] = true
+				if field.Alias != "" {
+					editableFields[field.Alias] = true
+				}
+			}
 		}
-	}
 
-	if len(validUpdates) == 0 {
-		return errors.New("没有可编辑的字段")
+		// 验证更新字段
+		for _, update := range updates {
+			if editableFields[update.ControlID] {
+				validUpdates = append(validUpdates, update)
+			} else {
+				log.Sugar.Warnw("尝试更新不可编辑的字段", "controlId", update.ControlID)
+			}
+		}
+
+		if len(validUpdates) == 0 {
+			return errors.New("没有可编辑的字段")
+		}
+	} else {
+		// 没有视图字段信息时，直接使用所有更新
+		validUpdates = updates
 	}
 
 	reqBody := UpdateRowRequest{
@@ -946,4 +967,351 @@ func (api *MingDaoYunAPI) DeleteRow(worksheetId, rowId string) error {
 
 	log.Sugar.Infow("明道云记录删除成功", "worksheetId", worksheetId, "rowId", rowId)
 	return nil
+}
+
+// ========== 视图字段动态获取相关 ==========
+
+// ViewField 视图字段结构（用于前端动态渲染）
+type ViewField struct {
+	ID       string        `json:"id"`
+	Name     string        `json:"name"`
+	Alias    string        `json:"alias,omitempty"`
+	Type     string        `json:"type"`
+	SubType  int           `json:"subType,omitempty"`
+	Options  []FieldOption `json:"options,omitempty"`
+	Required bool          `json:"required"`
+	Editable bool          `json:"editable"`
+	IsTitle  bool          `json:"isTitle,omitempty"`
+	Unit     string        `json:"unit,omitempty"`
+	Precision int          `json:"precision,omitempty"`
+}
+
+// FieldOption 字段选项
+type FieldOption struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+	Index int    `json:"index,omitempty"`
+}
+
+// WorksheetInfoResponse 工作表结构响应
+type WorksheetInfoResponse struct {
+	WorksheetID string      `json:"worksheetId"`
+	Name        string      `json:"name"`
+	Views       []ViewInfo  `json:"views"`
+	Controls    []ControlInfo `json:"controls"`
+}
+
+// ViewInfo 视图信息
+type ViewInfo struct {
+	ViewID   string   `json:"viewId"`
+	Name     string   `json:"name"`
+	ViewType int      `json:"viewType"`
+	Controls []string `json:"controls,omitempty"` // 视图包含的字段ID列表
+}
+
+// ControlInfo 控件/字段信息
+type ControlInfo struct {
+	ControlID   string          `json:"controlId"`
+	ControlName string          `json:"controlName"`
+	Type        int             `json:"type"`
+	Alias       string          `json:"alias,omitempty"`
+	Required    bool            `json:"required"`
+	Options     []ControlOption `json:"options,omitempty"`
+	Unit        string          `json:"unit,omitempty"`
+	Dot         int             `json:"dot,omitempty"` // 小数位数
+	Attribute   int             `json:"attribute,omitempty"`
+}
+
+// ControlOption 控件选项
+type ControlOption struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+	Index int    `json:"index"`
+}
+
+// GetWorksheetInfoRequest 获取工作表结构请求
+type GetWorksheetInfoRequest struct {
+	AppKey      string `json:"appKey"`
+	Sign        string `json:"sign"`
+	WorksheetID string `json:"worksheetId"`
+}
+
+// GetWorksheetInfo 获取工作表结构（包含字段和视图信息）
+func (api *MingDaoYunAPI) GetWorksheetInfo(worksheetId string) (*WorksheetInfoResponse, error) {
+	cfg := conf.Settings.MingDaoYun
+	if cfg.APIBase == "" || cfg.AppKey == "" || cfg.Sign == "" {
+		return nil, errors.New("明道云配置不完整")
+	}
+
+	reqBody := GetWorksheetInfoRequest{
+		AppKey:      cfg.AppKey,
+		Sign:        cfg.Sign,
+		WorksheetID: worksheetId,
+	}
+
+	jsonBody, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, errors.Wrap(err, "序列化请求体失败")
+	}
+
+	url := fmt.Sprintf("%s/v2/open/worksheet/getWorksheetInfo", cfg.APIBase)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return nil, errors.Wrap(err, "创建请求失败")
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	log.Sugar.Debugw("调用明道云 API 获取工作表结构",
+		"url", url,
+		"worksheetId", worksheetId,
+	)
+
+	resp, err := api.httpClient.Do(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "发送请求失败")
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "读取响应失败")
+	}
+
+	var mdyResp struct {
+		Success   bool   `json:"success"`
+		ErrorCode int    `json:"error_code"`
+		ErrorMsg  string `json:"error_msg"`
+		Data      struct {
+			WorksheetID string `json:"worksheetId"`
+			Name        string `json:"name"`
+			Views       []struct {
+				ViewID   string   `json:"viewId"`
+				Name     string   `json:"name"`
+				ViewType int      `json:"viewType"`
+				Controls []string `json:"controls"`
+			} `json:"views"`
+			Controls []struct {
+				ControlID   string `json:"controlId"`
+				ControlName string `json:"controlName"`
+				Type        int    `json:"type"`
+				Alias       string `json:"alias"`
+				Required    bool   `json:"required"`
+				Options     []struct {
+					Key   string `json:"key"`
+					Value string `json:"value"`
+					Index int    `json:"index"`
+				} `json:"options"`
+				Unit      string `json:"unit"`
+				Dot       int    `json:"dot"`
+				Attribute int    `json:"attribute"`
+			} `json:"controls"`
+		} `json:"data"`
+	}
+
+	if err := json.Unmarshal(body, &mdyResp); err != nil {
+		log.Sugar.Errorw("解析明道云响应失败", "body", string(body), "err", err)
+		return nil, errors.Wrap(err, "解析响应失败")
+	}
+
+	if !mdyResp.Success {
+		log.Sugar.Errorw("明道云 API 返回错误",
+			"errorCode", mdyResp.ErrorCode,
+			"errorMsg", mdyResp.ErrorMsg,
+		)
+		return nil, fmt.Errorf("明道云 API 错误: %s (code: %d)", mdyResp.ErrorMsg, mdyResp.ErrorCode)
+	}
+
+	// 转换为内部结构
+	result := &WorksheetInfoResponse{
+		WorksheetID: mdyResp.Data.WorksheetID,
+		Name:        mdyResp.Data.Name,
+	}
+
+	// 转换视图信息
+	for _, v := range mdyResp.Data.Views {
+		result.Views = append(result.Views, ViewInfo{
+			ViewID:   v.ViewID,
+			Name:     v.Name,
+			ViewType: v.ViewType,
+			Controls: v.Controls,
+		})
+	}
+
+	// 转换控件信息
+	for _, c := range mdyResp.Data.Controls {
+		ctrl := ControlInfo{
+			ControlID:   c.ControlID,
+			ControlName: c.ControlName,
+			Type:        c.Type,
+			Alias:       c.Alias,
+			Required:    c.Required,
+			Unit:        c.Unit,
+			Dot:         c.Dot,
+			Attribute:   c.Attribute,
+		}
+		for _, opt := range c.Options {
+			ctrl.Options = append(ctrl.Options, ControlOption{
+				Key:   opt.Key,
+				Value: opt.Value,
+				Index: opt.Index,
+			})
+		}
+		result.Controls = append(result.Controls, ctrl)
+	}
+
+	return result, nil
+}
+
+// GetViewFields 获取指定视图的字段列表（用于前端动态渲染）
+// viewId: 视图ID
+// 返回按视图配置顺序排列的字段列表，包含类型、选项等信息
+func (api *MingDaoYunAPI) GetViewFields(worksheetId, viewId string) ([]ViewField, error) {
+	// 获取工作表结构
+	wsInfo, err := api.GetWorksheetInfo(worksheetId)
+	if err != nil {
+		return nil, errors.Wrap(err, "获取工作表结构失败")
+	}
+
+	// 查找目标视图
+	var targetView *ViewInfo
+	for i := range wsInfo.Views {
+		if wsInfo.Views[i].ViewID == viewId {
+			targetView = &wsInfo.Views[i]
+			break
+		}
+	}
+
+	if targetView == nil {
+		return nil, fmt.Errorf("未找到视图: %s", viewId)
+	}
+
+	// 构建控件ID到控件信息的映射
+	controlMap := make(map[string]*ControlInfo)
+	for i := range wsInfo.Controls {
+		controlMap[wsInfo.Controls[i].ControlID] = &wsInfo.Controls[i]
+	}
+
+	// 按视图中的字段顺序构建结果
+	var fields []ViewField
+	for _, ctrlID := range targetView.Controls {
+		ctrl, ok := controlMap[ctrlID]
+		if !ok {
+			continue
+		}
+
+		field := ViewField{
+			ID:        ctrl.ControlID,
+			Name:      ctrl.ControlName,
+			Alias:     ctrl.Alias,
+			Type:      controlTypeToString(ctrl.Type),
+			SubType:   ctrl.Attribute,
+			Required:  ctrl.Required,
+			Editable:  isFieldEditable(ctrl.Type),
+			Unit:      ctrl.Unit,
+			Precision: ctrl.Dot,
+		}
+
+		// 转换选项
+		for _, opt := range ctrl.Options {
+			field.Options = append(field.Options, FieldOption{
+				Key:   opt.Key,
+				Value: opt.Value,
+				Index: opt.Index,
+			})
+		}
+
+		fields = append(fields, field)
+	}
+
+	log.Sugar.Infow("获取视图字段完成",
+		"worksheetId", worksheetId,
+		"viewId", viewId,
+		"viewName", targetView.Name,
+		"fieldsCount", len(fields),
+	)
+
+	return fields, nil
+}
+
+// controlTypeToString 将明道云控件类型数字转换为字符串
+func controlTypeToString(typeNum int) string {
+	typeMap := map[int]string{
+		1:  "Text",           // 文本
+		2:  "Text",           // 文本(多行)
+		3:  "Phone",          // 手机号码
+		4:  "Phone",          // 座机
+		5:  "Email",          // 邮箱
+		6:  "Number",         // 数值
+		7:  "Money",          // 金额
+		8:  "Date",           // 日期
+		9:  "Area",           // 地区
+		10: "MultipleSelect", // 多选
+		11: "Dropdown",       // 单选
+		14: "Attachment",     // 附件
+		15: "DateTime",       // 日期时间
+		16: "DateTime",       // 日期时间范围
+		19: "Area",           // 地区(省市县)
+		20: "Relation",       // 关联记录
+		21: "Relation",       // 关联记录(多条)
+		22: "Divider",        // 分段
+		23: "Rich",           // 富文本
+		24: "Location",       // 定位
+		25: "AutoNumber",     // 自动编号
+		26: "Collaborator",   // 成员
+		27: "Department",     // 部门
+		28: "Rating",         // 等级
+		29: "Relation",       // 关联查询
+		30: "Check",          // 他表字段
+		31: "Formula",        // 公式
+		32: "Text",           // 文本组合
+		33: "Switch",         // 开关
+		34: "SubTable",       // 子表
+		35: "Cascader",       // 级联选择
+		36: "Switch",         // 检查项
+		37: "Rollup",         // 汇总
+		38: "Formula",        // 公式(日期)
+		40: "Location",       // 定位(多个)
+		41: "Rich",           // 富文本(嵌入)
+		42: "Signature",      // 签名
+		43: "OrgRole",        // 组织角色
+		45: "Embed",          // 嵌入
+		46: "DateTime",       // 时间
+		47: "BarCode",        // 条码
+		48: "QueryRecord",    // 查询记录
+		49: "Section",        // 标签页
+		50: "API",            // API查询
+		51: "Approval",       // 审批流程
+		52: "Section",        // 分组
+	}
+
+	if typeName, ok := typeMap[typeNum]; ok {
+		return typeName
+	}
+	return fmt.Sprintf("Unknown(%d)", typeNum)
+}
+
+// isFieldEditable 判断字段是否可编辑
+func isFieldEditable(typeNum int) bool {
+	// 不可编辑的类型
+	nonEditableTypes := map[int]bool{
+		25: true, // 自动编号
+		29: true, // 关联查询
+		30: true, // 他表字段
+		31: true, // 公式
+		37: true, // 汇总
+		38: true, // 日期公式
+		48: true, // 查询记录
+		51: true, // 审批流程
+	}
+
+	// 布局类型也不可编辑
+	layoutTypes := map[int]bool{
+		22: true, // 分段
+		41: true, // 嵌入
+		45: true, // 嵌入
+		49: true, // 标签页
+		52: true, // 分组
+	}
+
+	return !nonEditableTypes[typeNum] && !layoutTypes[typeNum]
 }

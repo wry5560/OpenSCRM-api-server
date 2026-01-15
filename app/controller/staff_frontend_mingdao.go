@@ -23,43 +23,29 @@ func NewStaffFrontendMingDaoHandler() *StaffFrontendMingDaoHandler {
 	}
 }
 
-// FieldConfig 字段配置响应
-type FieldConfig struct {
-	ID       string                     `json:"id"`
-	Name     string                     `json:"name"`
-	Type     string                     `json:"type"`
-	Editable bool                       `json:"editable"`
-	Options  []constants.DropdownOption `json:"options,omitempty"`
-}
-
 // GetFieldConfigsResponse 字段配置响应
 type GetFieldConfigsResponse struct {
-	Fields []FieldConfig `json:"fields"`
+	Fields []services.ViewField `json:"fields"`
 }
 
 // GetFieldConfigs 获取客户表字段配置
 // @tags 侧边栏-明道云
 // @Summary 获取客户表字段配置
-// @Description 获取侧边栏展示的客户字段配置，包括字段ID、名称、类型、是否可编辑、选项等
+// @Description 从明道云侧边栏视图动态获取字段配置，包括字段ID、名称、类型、是否可编辑、选项等
 // @Produce json
 // @Success 200 {object} app.JSONResult{data=GetFieldConfigsResponse} "成功"
 // @Router /api/v1/staff-frontend/mingdao/customer/fields [get]
 func (h *StaffFrontendMingDaoHandler) GetFieldConfigs(c *gin.Context) {
 	handler := app.NewHandler(c)
 
-	fields := make([]FieldConfig, 0, len(constants.MingDaoYunCustomerDisplayFields))
-	for _, field := range constants.MingDaoYunCustomerDisplayFields {
-		fc := FieldConfig{
-			ID:       field.ID,
-			Name:     field.Name,
-			Type:     field.Type,
-			Editable: field.Editable,
-		}
-		// 添加下拉选项
-		if options, ok := constants.MingDaoYunFieldOptions[field.ID]; ok {
-			fc.Options = options
-		}
-		fields = append(fields, fc)
+	// 从明道云视图动态获取字段配置
+	fields, err := h.api.GetViewFields(
+		constants.MingDaoYunCustomerWorksheetAlias,
+		constants.MingDaoYunCustomerSidebarViewID,
+	)
+	if err != nil {
+		handler.ResponseError(errors.Wrap(err, "获取字段配置失败"))
+		return
 	}
 
 	handler.ResponseItem(GetFieldConfigsResponse{Fields: fields})

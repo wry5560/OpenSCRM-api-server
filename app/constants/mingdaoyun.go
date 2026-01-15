@@ -15,6 +15,12 @@ const (
 	MingDaoYunStaffWorksheetAlias = "starstaffinfo"
 	// MingDaoYunDepartmentWorksheetAlias 部门表别名
 	MingDaoYunDepartmentWorksheetAlias = "stardeptinfo"
+
+	// MingDaoYunCustomerSidebarViewID 客户表侧边栏视图 ID
+	// 用于获取侧边栏展示的字段配置
+	MingDaoYunCustomerSidebarViewID = "6968b1d720744c37e816d8e3"
+	// MingDaoYunCustomerSidebarViewAlias 客户表侧边栏视图别名（备用，待 API 支持后切换）
+	MingDaoYunCustomerSidebarViewAlias = "starMobileSideBar"
 )
 
 // MingDaoYunCustomerFields 明道云客户表字段映射（企微信息绑定时写入）
@@ -37,7 +43,7 @@ var MingDaoYunCustomerFields = map[string]string{
 }
 
 // MingDaoYunCustomerStaticFields 明道云客户表静态字段配置
-// 用于侧边栏客户信息展示和编辑
+// Deprecated: 改为从明道云视图动态获取字段配置，此类型仅用于兼容旧代码
 type CustomerFieldConfig struct {
 	ID       string // 字段ID
 	Name     string // 字段名称
@@ -46,6 +52,7 @@ type CustomerFieldConfig struct {
 }
 
 // MingDaoYunCustomerDisplayFields 侧边栏展示的静态字段列表
+// Deprecated: 改为从明道云视图动态获取，此变量仅用于兼容旧代码
 var MingDaoYunCustomerDisplayFields = []CustomerFieldConfig{
 	{ID: "693660e95326c71216b1b87a", Name: "客户编号", Type: "AutoNumber", Editable: false},
 	{ID: "692f976f7001b729cd1c01c1", Name: "号码", Type: "Text", Editable: false},
@@ -70,6 +77,7 @@ var MingDaoYunCustomerDisplayFields = []CustomerFieldConfig{
 }
 
 // MingDaoYunCustomerHiddenFields 需要隐藏的微信相关字段ID列表
+// Deprecated: 改为通过明道云视图配置控制字段可见性
 var MingDaoYunCustomerHiddenFields = []string{
 	"696610f93d7d0e60bca91d26", // 企微员工ID
 	"6966103cc62174e0bab32b9c", // 微信名
@@ -88,6 +96,7 @@ type DropdownOption struct {
 }
 
 // MingDaoYunFieldOptions 字段选项配置
+// Deprecated: 改为从明道云动态获取字段选项，此变量仅用于兼容旧代码
 var MingDaoYunFieldOptions = map[string][]DropdownOption{
 	// 主播选项
 	"692f976f7001b729cd1c01c0": {
