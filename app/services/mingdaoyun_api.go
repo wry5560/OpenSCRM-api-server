@@ -596,6 +596,18 @@ func (api *MingDaoYunAPI) GetViewFields(worksheetId, viewId string) ([]ViewField
 		}
 	}
 
+	// 输出每个字段的详情用于调试
+	for i, f := range fields {
+		log.Sugar.Infow("视图字段详情",
+			"index", i,
+			"id", f.ID,
+			"name", f.Name,
+			"type", f.Type,
+			"editable", f.Editable,
+			"optionsCount", len(f.Options),
+		)
+	}
+
 	log.Sugar.Infow("获取视图字段完成",
 		"worksheetId", worksheetId,
 		"viewId", viewId,
