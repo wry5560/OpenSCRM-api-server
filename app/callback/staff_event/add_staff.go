@@ -113,7 +113,7 @@ func SyncStaff(extCorpID string, ExtStaffID string) error {
 
 	// 异步同步员工到明道云
 	syncService := services.NewMingDaoYunStaffSyncService()
-	syncService.AsyncSyncStaff(&newStaff, "create")
+	syncService.AsyncSyncStaff(newStaff, "create")
 
 	return nil
 }

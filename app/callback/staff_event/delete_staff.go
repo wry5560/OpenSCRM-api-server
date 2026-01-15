@@ -38,7 +38,7 @@ func EventDelStaffHandler(msg *gowx.RxMessage) error {
 
 	// 异步同步员工到明道云（将状态改为离职）
 	syncService := services.NewMingDaoYunStaffSyncService()
-	syncService.AsyncSyncStaff(&staff, "delete")
+	syncService.AsyncSyncStaff(staff, "delete")
 
 	return nil
 }

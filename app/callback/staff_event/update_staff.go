@@ -78,7 +78,7 @@ func EventUpdateStaffHandler(msg *gowx.RxMessage) error {
 
 	// 异步同步员工到明道云
 	syncService := services.NewMingDaoYunStaffSyncService()
-	syncService.AsyncSyncStaff(&newStaff, "update")
+	syncService.AsyncSyncStaff(newStaff, "update")
 
 	return nil
 }

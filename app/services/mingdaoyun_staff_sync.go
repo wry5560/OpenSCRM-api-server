@@ -466,7 +466,7 @@ func (s *MingDaoYunStaffSyncService) AsyncSyncDepartment(dept *models.Department
 
 		s.syncWithRetry(func() error {
 			return s.SyncDepartmentToMingDaoYun(dept, action)
-		}, 3, "部门", dept.ExtID)
+		}, 3, "部门", strconv.FormatInt(dept.ExtID, 10))
 	}()
 }
 
