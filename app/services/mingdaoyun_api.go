@@ -438,6 +438,8 @@ func (api *MingDaoYunAPI) GetWorksheetInfo(worksheetId string) (*WorksheetInfoRe
 				Index: opt.Index,
 				Color: opt.Color,
 			})
+			// 调试日志：输出选项颜色（无论是否有颜色）
+			log.Sugar.Infow("选项详情", "fieldName", c.ControlName, "optValue", opt.Value, "color", opt.Color)
 		}
 		result.Fields = append(result.Fields, field)
 	}
@@ -661,6 +663,8 @@ func isFieldEditable(fieldType string, isReadOnly bool) bool {
 		"DateFormula":  true, // 日期公式
 		"QueryRecord":  true, // 查询记录
 		"Approval":     true, // 审批流程
+		"Collaborator": true, // 成员（需特殊选择器，暂不支持编辑）
+		"Relation":     true, // 关联记录（需特殊选择器，暂不支持编辑）
 	}
 
 	// 布局类型

@@ -66,13 +66,23 @@ func (o JsApiService) GetJSAgentConfig(url string, extCorpID string) (res respon
 
 	ticket, err := client.MainApp.GetJSAPIAgentTicket()
 	if err != nil {
+		log2.Sugar.Errorw("GetJSAPIAgentTicket failed", "err", err)
 		err = errors.WithStack(err)
 		return
 	}
 
 	rawStr := fmt.Sprintf("jsapi_ticket=%s&noncestr=%s&timestamp=%d&url=%s", ticket, res.NonceStr, res.Timestamp, res.URL)
-	log2.Sugar.Debugw("rawStr", "rawStr", rawStr)
+	log2.Sugar.Debugw("agentConfig rawStr", "rawStr", rawStr)
 	res.Signature = gsha1.Encrypt(rawStr)
+
+	log2.Sugar.Infow("agentConfig response",
+		"corpid", res.CorpID,
+		"agentid", res.AgentID,
+		"timestamp", res.Timestamp,
+		"nonceStr", res.NonceStr,
+		"signature", res.Signature,
+		"url", res.URL,
+		"ticket_len", len(ticket))
 
 	return
 }
